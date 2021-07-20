@@ -13,13 +13,15 @@
   ],
   "scripts": {
     "build": "tsc",
-    "start": "probot run ./lib/index.js",
+	"start": "node ./lib/main.js",
     "test": "jest",
-    "dev": "nodemon src/main.ts",
-    "dev:debug": "nodemon --exec 'node --inspect --require ts-node/register src/main.ts'"
+	"dev": "tsc -w & nodemon ./lib/main.js",
+	"dev:debug": "tsc -w & nodemon --inspect ./lib/main.js",
+	"receive": "probot receive -e pull_request -p test/fixtures/pull_request.edited.json lib/index.js"
   },
   "dependencies": {
     "@noqcks/generated": "^1.0.0",
+    "dotenv": "^10.0.0",
     "minimatch": "^3.0.4",
     "probot": "^11.0.1"
   },

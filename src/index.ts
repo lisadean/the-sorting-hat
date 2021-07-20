@@ -1,8 +1,7 @@
 import { Context, Probot } from 'probot';
-import * as Generated from '@noqcks/generated';
+import Generated from '@noqcks/generated';
 import { minimatch } from 'minimatch';
 import { PullRequest } from '@octokit/webhooks-types';
-import { Endpoints } from '@octokit/types';
 
 // Breaking change with v11: context.github has been removed. Use context.octokit instead
 // https://github.com/probot/probot/releases/tag/v11.0.0
@@ -32,6 +31,12 @@ enum Sizes {
 	Xl = 500,
 	Xxl = 1000
 }
+
+const log = (stuff) => {
+	if (process.env.NODE_ENV === 'development') {
+		console.log(stuff);
+	}
+};
 
 /**
  * sizeLabel will return a string label that can be assigned to a
@@ -121,6 +126,7 @@ export = (app: Probot) => {
 				name: repo
 			} = pullRequest.base.repo;
 			const { number } = pullRequest;
+			log(`Pull request ${number} in ${repo}`);
 
 			const fileData = await context.octokit.rest.pulls.listFiles({ owner, repo, pull_number: number });
 
@@ -137,11 +143,15 @@ export = (app: Probot) => {
 			});
 
 			var labelToAdd: Labels = sizeLabel(additions + deletions);
+			log(`Calculated labelToAdd: ${labelToAdd}`);
 
 			// remove existing size/<size> label if it exists and is not labelToAdd
 			pullRequest.labels.forEach((prLabel: { name: string }) => {
-				if (Object.values(Labels.toString()).includes(prLabel.name)) {
+				log(`PR label: ${prLabel.name}`);
+				log(`Labels: ${Object.values(Labels)}`);
+				if (Object.values(Labels).toString().includes(prLabel.name)) {
 					if (prLabel.name != labelToAdd) {
+						log(`Removing label ${prLabel.name}`);
 						context.octokit.issues.removeLabel(
 							context.issue({
 								name: prLabel.name
@@ -164,7 +174,7 @@ export = (app: Probot) => {
 	});
 
 	// we don't care about marketplace events
-	// TODO: do we actually?
+	// TODO: do we actually? Might be nice to see
 	app.on('marketplace_purchase', async () => {
 		return;
 	});
