@@ -32,11 +32,13 @@ enum Sizes {
 	Xxl = 1000
 }
 
-const log = (stuff) => {
+const debug = (stuff) => {
 	if (process.env.NODE_ENV === 'development') {
-		console.log(stuff);
+		console.debug(stuff);
 	}
 };
+
+const info = (stuff) => console.info(stuff);
 
 /**
  * sizeLabel will return a string label that can be assigned to a
@@ -126,37 +128,37 @@ export = (app: Probot) => {
 				name: repo
 			} = pullRequest.base.repo;
 			const { number } = pullRequest;
-			console.log(`Processing pull request ${number} in ${repo}`);
+			info(`Processing pull request ${number} in ${repo}`);
 
 			const fileData = await context.octokit.rest.pulls.listFiles({ owner, repo, pull_number: number });
 
 			// get list of custom generated files as defined in .gitattributes
 			const customGeneratedFiles = await getCustomGeneratedFiles(context, owner, repo);
 			if (customGeneratedFiles.length > 0) {
-				console.log(`Custom file exclusions found: ${customGeneratedFiles}`);
+				info(`Custom file exclusions found: ${customGeneratedFiles}`);
 			}
 
 			// if files are generated, remove them from the additions/deletions total
 			fileData.data.forEach((item) => {
 				const g = new Generated(item.filename, item.patch);
 				if (globMatch(item.filename, customGeneratedFiles) || g.isGenerated()) {
-					console.log(`Excluding file: ${item.filename}`);
+					info(`Excluding file: ${item.filename}`);
 					additions -= item.additions;
 					deletions -= item.deletions;
 				}
 			});
 			const totalChangedLines = additions + deletions;
 			const labelToAdd: Labels = sizeLabel(totalChangedLines);
-			console.log(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
-			console.log(`Calculated labelToAdd: ${labelToAdd}`);
+			info(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
+			info(`Calculated labelToAdd: ${labelToAdd}`);
 
 			// remove existing size/<size> label if it exists and is not labelToAdd
 			pullRequest.labels.forEach((prLabel: { name: string }) => {
-				log(`PR label: ${prLabel.name}`);
-				log(`Labels: ${Object.values(Labels)}`);
+				debug(`PR label: ${prLabel.name}`);
+				debug(`Labels: ${Object.values(Labels)}`);
 				if (Object.values(Labels).toString().includes(prLabel.name)) {
 					if (prLabel.name != labelToAdd) {
-						console.log(`Removing label ${prLabel.name}`);
+						info(`Removing label ${prLabel.name}`);
 						context.octokit.issues.removeLabel(
 							context.issue({
 								name: prLabel.name
