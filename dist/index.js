@@ -127,7 +127,7 @@ function getCustomGeneratedFiles(context, owner, repo) {
                     return [2 /*return*/, Buffer.from(data.content, 'base64')
                             .toString('ascii')
                             .split('\n')
-                            .filter(function (item) { return item.includes('linguist-generated=true'); })
+                            .filter(function (item) { return item.includes('linguist-generated=true') || item.includes('pr-size-ignore=true'); })
                             .map(function (item) { return item.split(' ')[0]; })];
                 case 3:
                     e_1 = _a.sent();
