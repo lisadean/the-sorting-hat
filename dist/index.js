@@ -132,6 +132,7 @@ function getCustomGeneratedFiles(context, owner, repo) {
                             .map(function (item) { return item.split(' ')[0]; })];
                 case 3:
                     e_1 = _a.sent();
+                    info("No .gitattributes file found");
                     return [2 /*return*/, []];
                 case 4: return [2 /*return*/];
             }
