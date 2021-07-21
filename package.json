@@ -1,11 +1,11 @@
 {
-  "name": "things-must-be-labeled",
+  "name": "the-sorting-hat",
   "version": "1.0.0",
   "private": true,
-  "description": "GitHub bot to automatically label things",
-  "author": "Lisa Dean <thingsmustbelabeled@lisadean.net>",
+  "description": "GitHub bot to sort things with labels",
+  "author": "Lisa Dean <thesortinghat@lisadean.net>",
   "license": "ISC",
-  "homepage": "https://github.com/lisadean/things-must-be-labeled",
+  "homepage": "https://github.com/lisadean/the-sorting-hat",
   "keywords": [
     "probot",
     "github",
@@ -13,14 +13,16 @@
   ],
   "scripts": {
     "build": "tsc",
-	"start": "node ./lib/main.js",
+    "build:githubaction": "tsc & ncc build lib/github-action.js -o dist",
+    "start": "node ./lib/index.js",
     "test": "jest",
-	"dev": "tsc -w & nodemon ./lib/main.js",
-	"dev:debug": "tsc -w & nodemon --inspect ./lib/main.js",
-	"receive": "probot receive -e pull_request -p test/fixtures/pull_request.edited.json lib/index.js"
+    "dev": "tsc -w & nodemon ./lib/index.js",
+    "dev:debug": "tsc -w & nodemon --inspect ./lib/index.js",
+    "receive": "probot receive -e pull_request -p test/fixtures/pull_request.edited.json lib/app.js"
   },
   "dependencies": {
     "@noqcks/generated": "^1.0.0",
+    "@probot/adapter-github-actions": "^3.0.1",
     "dotenv": "^10.0.0",
     "minimatch": "^3.0.4",
     "probot": "^11.0.1"
@@ -29,6 +31,7 @@
     "@octokit/webhooks": "^9.10.0",
     "@types/jest": "^26.0.19",
     "@types/node": "^14.14.19",
+    "@vercel/ncc": "^0.29.0",
     "jest": "^26.6.3",
     "nock": "^13.0.5",
     "nodemon": "^2.0.12",
