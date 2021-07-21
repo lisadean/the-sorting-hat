@@ -126,24 +126,29 @@ export = (app: Probot) => {
 				name: repo
 			} = pullRequest.base.repo;
 			const { number } = pullRequest;
-			log(`Pull request ${number} in ${repo}`);
+			console.log(`Processing pull request ${number} in ${repo}`);
 
 			const fileData = await context.octokit.rest.pulls.listFiles({ owner, repo, pull_number: number });
 
 			// get list of custom generated files as defined in .gitattributes
 			const customGeneratedFiles = await getCustomGeneratedFiles(context, owner, repo);
+			if (customGeneratedFiles.length > 0) {
+				console.log(`Custom file exclusions found: ${customGeneratedFiles}`);
+			}
 
 			// if files are generated, remove them from the additions/deletions total
 			fileData.data.forEach((item) => {
-				var g = new Generated(item.filename, item.patch);
+				const g = new Generated(item.filename, item.patch);
 				if (globMatch(item.filename, customGeneratedFiles) || g.isGenerated()) {
+					console.log(`Excluding file: ${item.filename}`);
 					additions -= item.additions;
 					deletions -= item.deletions;
 				}
 			});
-
-			var labelToAdd: Labels = sizeLabel(additions + deletions);
-			log(`Calculated labelToAdd: ${labelToAdd}`);
+			const totalChangedLines = additions + deletions;
+			const labelToAdd: Labels = sizeLabel(totalChangedLines);
+			console.log(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
+			console.log(`Calculated labelToAdd: ${labelToAdd}`);
 
 			// remove existing size/<size> label if it exists and is not labelToAdd
 			pullRequest.labels.forEach((prLabel: { name: string }) => {
@@ -151,7 +156,7 @@ export = (app: Probot) => {
 				log(`Labels: ${Object.values(Labels)}`);
 				if (Object.values(Labels).toString().includes(prLabel.name)) {
 					if (prLabel.name != labelToAdd) {
-						log(`Removing label ${prLabel.name}`);
+						console.log(`Removing label ${prLabel.name}`);
 						context.octokit.issues.removeLabel(
 							context.issue({
 								name: prLabel.name
