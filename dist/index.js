@@ -75,11 +75,12 @@ var Sizes;
     Sizes[Sizes["Xl"] = 500] = "Xl";
     Sizes[Sizes["Xxl"] = 1000] = "Xxl";
 })(Sizes || (Sizes = {}));
-var log = function (stuff) {
+var debug = function (stuff) {
     if (process.env.NODE_ENV === 'development') {
-        console.log(stuff);
+        console.debug(stuff);
     }
 };
+var info = function (stuff) { return console.info(stuff); };
 /**
  * sizeLabel will return a string label that can be assigned to a
  * GitHub Pull Request. The label is determined by the lines of code
@@ -188,7 +189,7 @@ function addLabel(context, name, color) {
 }
 module.exports = function (app) {
     app.on(['pull_request.opened', 'pull_request.reopened', 'pull_request.synchronize', 'pull_request.edited'], function (context) { return __awaiter(void 0, void 0, void 0, function () {
-        var pullRequest, additions, deletions, _a, owner, repo, number, fileData, customGeneratedFiles, labelToAdd;
+        var pullRequest, additions, deletions, _a, owner, repo, number, fileData, customGeneratedFiles, totalChangedLines, labelToAdd;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
@@ -196,30 +197,36 @@ module.exports = function (app) {
                     additions = pullRequest.additions, deletions = pullRequest.deletions;
                     _a = pullRequest.base.repo, owner = _a.owner.login, repo = _a.name;
                     number = pullRequest.number;
-                    log("Pull request " + number + " in " + repo);
+                    info("Processing pull request " + number + " in " + repo);
                     return [4 /*yield*/, context.octokit.rest.pulls.listFiles({ owner: owner, repo: repo, pull_number: number })];
                 case 1:
                     fileData = _b.sent();
                     return [4 /*yield*/, getCustomGeneratedFiles(context, owner, repo)];
                 case 2:
                     customGeneratedFiles = _b.sent();
+                    if (customGeneratedFiles.length > 0) {
+                        info("Custom file exclusions found: " + customGeneratedFiles);
+                    }
                     // if files are generated, remove them from the additions/deletions total
                     fileData.data.forEach(function (item) {
                         var g = new generated_1.default(item.filename, item.patch);
                         if (globMatch(item.filename, customGeneratedFiles) || g.isGenerated()) {
+                            info("Excluding file: " + item.filename);
                             additions -= item.additions;
                             deletions -= item.deletions;
                         }
                     });
-                    labelToAdd = sizeLabel(additions + deletions);
-                    log("Calculated labelToAdd: " + labelToAdd);
+                    totalChangedLines = additions + deletions;
+                    labelToAdd = sizeLabel(totalChangedLines);
+                    info("Total number of additions and deletions in non-excluded files: " + totalChangedLines);
+                    info("Calculated labelToAdd: " + labelToAdd);
                     // remove existing size/<size> label if it exists and is not labelToAdd
                     pullRequest.labels.forEach(function (prLabel) {
-                        log("PR label: " + prLabel.name);
-                        log("Labels: " + Object.values(Labels));
+                        debug("PR label: " + prLabel.name);
+                        debug("Labels: " + Object.values(Labels));
                         if (Object.values(Labels).toString().includes(prLabel.name)) {
                             if (prLabel.name != labelToAdd) {
-                                log("Removing label " + prLabel.name);
+                                info("Removing label " + prLabel.name);
                                 context.octokit.issues.removeLabel(context.issue({
                                     name: prLabel.name
                                 }));
