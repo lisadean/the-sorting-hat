@@ -12,7 +12,8 @@
     "probot-app"
   ],
   "scripts": {
-    "build": "tsc & ncc build lib/github-action.js -o dist",
+    "build": "tsc",
+	"build:action": "ncc build lib/github-action.js -o dist",
     "start": "node ./lib/index.js",
     "test": "jest",
     "dev": "tsc -w & nodemon ./lib/index.js",
