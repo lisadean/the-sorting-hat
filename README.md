@@ -1,5 +1,7 @@
 # things-must-be-labeled
 
+GitHub bot to label stuff. Some functionality taken from [Pull Request Size](https://github.com/noqcks/pull-request-size).
+
 > A GitHub App built with [Probot](https://github.com/probot/probot) that GitHub bot to automatically label things
 
 ## Setup

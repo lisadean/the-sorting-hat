@@ -1,0 +1,14 @@
+.out/
+dist/
+node_modules/
+package-lock.json
+package.json
+jest.config.js
+build/
+lib/
+coverage/
+website/.docusaurus
+website/build
+.docusaurus
+.scannerwork
+.nvm
