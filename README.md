@@ -1,35 +1,26 @@
-# things-must-be-labeled
+# The Sorting Hat
 
-GitHub bot to label stuff. Some functionality taken from [Pull Request Size](https://github.com/noqcks/pull-request-size).
+GitHub bot to label stuff.
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) that GitHub bot to automatically label things
-
-## Setup
+## Development
 
 ```sh
 # Install dependencies
-npm install
+npm ci
 
-# Run the bot
-npm start
+# Run development environment
+npm run dev
 ```
 
-## Docker
+## Features
 
-```sh
-# 1. Build container
-docker build -t things-must-be-labeled .
+-   Labels PRs based on the number of line additions and deletions
+    -   Original PR size labeling functionality taken from [Pull Request Size](https://github.com/noqcks/pull-request-size)
+    -   Excludes computer generated files as detected in [@noqcks/generated](https://github.com/noqcks/generated). (Full list of files detected here: [generated.js](https://github.com/noqcks/generated/blob/master/lib/generated.js))
+    -   Excludes files listed as `linguist-generated=true` or `pr-size-ignore=true` in `.gitattributes`
 
-# 2. Start container
-docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> things-must-be-labeled
-```
+## Architecture
 
-## Contributing
+-   Built with `create-probot-app` from [Probot](https://github.com/probot/probot)
 
-If you have suggestions for how things-must-be-labeled could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
-
-For more, check out the [Contributing Guide](CONTRIBUTING.md).
-
-## License
-
-[ISC](LICENSE) © 2021 Lisa Dean <thingsmustbelabeled@lisadean.net>
+-   Converted to run as GitHub Action instead of App. This means the application does not have to be deployed but can be run as needed by a workflow. Docs for running probot app as a GitHub Action: https://github.com/probot/example-github-action
