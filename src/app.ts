@@ -79,6 +79,7 @@ async function getCustomGeneratedFiles(context: Context, owner: string, repo: st
 			.filter((item) => item.includes('linguist-generated=true') || item.includes('pr-size-ignore=true'))
 			.map((item) => item.split(' ')[0]);
 	} catch (e) {
+		info(`No .gitattributes file found`);
 		return [];
 	}
 }
