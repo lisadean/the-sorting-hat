@@ -74,7 +74,7 @@ async function getCustomGeneratedFiles(context: Context, owner: string, repo: st
 		return Buffer.from(data.content, 'base64')
 			.toString('ascii')
 			.split('\n')
-			.filter((item) => item.includes('linguist-generated=true'))
+			.filter((item) => item.includes('linguist-generated=true') || item.includes('pr-size-ignore=true'))
 			.map((item) => item.split(' ')[0]);
 	} catch (e) {
 		return [];
