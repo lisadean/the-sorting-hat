@@ -6,6 +6,9 @@ jobs:
   run-action:
     runs-on: ubuntu-latest
     steps:
+      - uses: styfle/cancel-workflow-action@0.8.0
+        with:
+          access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run GH action from dev branch
         uses: lisadean/the-sorting-hat@vdev
         with:
