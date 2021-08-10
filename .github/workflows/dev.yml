@@ -1,0 +1,12 @@
+name: Test workflow
+on:
+  pull_request:
+
+jobs:
+  run-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run GH action from dev branch
+        uses: lisadean/the-sorting-hat@dev
+        with:
+          access_token: ${{ secrets.GITHUB_TOKEN }}

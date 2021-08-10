@@ -1,8 +1,9 @@
 name: The Sorting Hat
-description: "GitHub App to sort things with labels"
+author: Lisa Dean https://github.com/lisadean
+description: 'GitHub App to sort things with labels'
 branding:
-  icon: "tag"
-  color: blue
+    icon: 'tag'
+    color: blue
 runs:
-  using: "node12"
-  main: "dist/index.js"
+    using: 'node12'
+    main: 'dist/index.js'

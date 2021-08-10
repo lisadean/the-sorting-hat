@@ -1,8 +1,0 @@
-{
-	"restartable": "rs",
-	"watch": ["lib/"],
-	"env": {
-		"NODE_ENV": "development"
-	},
-	"ext": "js,ts"
-}
