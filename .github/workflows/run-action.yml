@@ -7,6 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run GH action from dev branch
-        uses: lisadean/the-sorting-hat@main
+        uses: lisadean/the-sorting-hat@dev
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
