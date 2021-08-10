@@ -9,4 +9,4 @@ jobs:
       - name: Run GH action from dev branch
         uses: lisadean/the-sorting-hat@main
         with:
-          access_token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
