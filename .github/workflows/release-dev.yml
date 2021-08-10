@@ -21,8 +21,8 @@ jobs:
             - run: npm ci
             - run: npm run build
             - run: npm run package
-            - run: rm .gitignore # dist/ folder is ignored by default
-            # This workflow skips the semantic-release because we don't need to bump the version
+            - run: echo '!dist' >> .gitignore # dist/ folder is ignored by default
+            - run: npx semantic-release
             - run: 'git push https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/vdev'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
