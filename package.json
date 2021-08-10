@@ -17,7 +17,6 @@
 		"format": "prettier --write **/*.ts",
 		"lint": "eslint src/**/*.ts",
 		"package": "ncc build lib/index.js --source-map --license licenses.txt",
-		"release": "npm run build && npm run package",
 		"test": "jest"
 	},
 	"dependencies": {
