@@ -11,12 +11,11 @@
 		"action"
 	],
 	"scripts": {
-		"all": "npm run build && npm run format && npm run lint && npm run package",
-		"all:test": "npm run build && npm run format && npm run lint && npm run package && npm test",
-		"build": "tsc",
+		"all": "npm run format && npm run lint && npm run build",
+		"all:test": "npm run format && npm run lint && npm run build && npm test",
+		"build": "ncc build src/index.js",
 		"format": "prettier --write **/*.ts",
 		"lint": "eslint src/**/*.ts",
-		"package": "ncc build lib/index.js --no-source-map-register",
 		"test": "jest"
 	},
 	"dependencies": {
