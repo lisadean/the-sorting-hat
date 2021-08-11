@@ -11,22 +11,26 @@ jobs:
             - uses: styfle/cancel-workflow-action@0.8.0
               with:
                   access_token: ${{ secrets.GITHUB_TOKEN }}
-            - uses: actions/checkout@v2
+            - name: Checkout repo
+              uses: actions/checkout@v2
               with:
-                fetch-depth: 0
+                  fetch-depth: 0
             - uses: actions/setup-node@v2
               with:
                   node-version: 16
                   cache: npm
-            - run: |
+            - name: Build
+              run: |
                 npm ci
                 npm run build
-                git config user.name "Automation"
-                git config user.email Automation@build.com
-                git add .
-                git commit -m "ncc build files"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            - run: 'git push --force https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/vdev'
+            - name: Commit dist folder and push to vdev branch
+              run: |
+                git config user.name "Automation"
+                git config user.email Automation@build.com
+                git add --force ./dist/*
+                git commit -m "ncc build files"
+                'git push --force https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/vdev'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
