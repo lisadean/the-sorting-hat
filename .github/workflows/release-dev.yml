@@ -1,4 +1,4 @@
-name: Release to dev
+name: Release to vdev
 on:
     push:
       branches:
@@ -20,7 +20,6 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run build
-            - run: npm run package
             - run: echo '!dist' >> .gitignore # un-ignore dist folder
             - run: npx semantic-release
               env:
