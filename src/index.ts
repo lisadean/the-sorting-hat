@@ -32,21 +32,10 @@ enum Sizes {
 	Xxl = 1000
 }
 
-const info = (stuff: string) => {
-	// eslint-disable-next-line no-console
-	console.info(stuff);
-	core.info(stuff);
-};
-const error = (stuff: string | Error) => {
-	// eslint-disable-next-line no-console
-	console.error(stuff);
-	core.error(stuff);
-};
-const debug = (stuff: string) => {
-	// eslint-disable-next-line no-console
-	process.env.NODE_ENV === 'development' && console.debug(stuff);
-	core.debug(stuff);
-};
+const info = (stuff: string) => core.info(stuff);
+const error = (stuff: string | Error) => core.error(stuff);
+const debug = (stuff: string) => core.debug(stuff);
+
 const globMatch = (file: string, globs: string[]) => globs.some((glob) => minimatch(file, glob));
 
 /**
@@ -103,12 +92,12 @@ const handlePullRequest = async (context: Context) => {
 	const client: ClientType = github.getOctokit(core.getInput('token'));
 
 	const {
-		pull_request: { number },
+		pull_request: { number, title },
 		pull_request: pullRequest
 	}: PullRequestEvent = context.payload as PullRequestEvent;
 
 	let { additions, deletions } = pullRequest;
-	info(`Processing pull request ${number} in ${context.repo.repo}`);
+	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
 
 	const fileData = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
 	const excludedFiles = await getExcludedFiles(client);
