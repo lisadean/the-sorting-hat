@@ -18,9 +18,13 @@ jobs:
               with:
                   node-version: 16
                   cache: npm
-            - run: npm ci
-            - run: npm run build
-            - run: npx semantic-release
+            - run: |
+                npm ci
+                npm run build
+                git config user.name "Automation"
+                git config user.email Automation@build.com
+                git add .
+                git commit -m "ncc build files"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - run: 'git push https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/vdev'
