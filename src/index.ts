@@ -1,6 +1,6 @@
-import core from '@actions/core';
-import github from '@actions/github';
-import Generated from '@noqcks/generated';
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+import * as Generated from '@noqcks/generated';
 import { minimatch } from 'minimatch';
 import { PullRequestEvent } from '@octokit/webhooks-types';
 import { Context } from '@actions/github/lib/context';
