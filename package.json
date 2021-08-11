@@ -16,7 +16,7 @@
 		"build": "tsc",
 		"format": "prettier --write **/*.ts",
 		"lint": "eslint src/**/*.ts",
-		"package": "ncc build lib/index.js",
+		"package": "ncc build lib/index.js --no-source-map-register",
 		"test": "jest"
 	},
 	"dependencies": {
