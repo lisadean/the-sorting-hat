@@ -156,7 +156,7 @@ const run = async () => {
 			return core.warning('No relevant event found');
 		}
 	} catch (e) {
-		error(e.message);
+		error(e);
 		return core.setFailed(e.message);
 	}
 };
