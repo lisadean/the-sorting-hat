@@ -7958,17 +7958,17 @@ var Sizes;
 const info = (stuff) => {
     // eslint-disable-next-line no-console
     console.info(stuff);
-    _actions_core__WEBPACK_IMPORTED_MODULE_0___default().info(stuff);
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.info(stuff);
 };
 const error = (stuff) => {
     // eslint-disable-next-line no-console
     console.error(stuff);
-    _actions_core__WEBPACK_IMPORTED_MODULE_0___default().error(stuff);
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.error(stuff);
 };
 const debug = (stuff) => {
     // eslint-disable-next-line no-console
     process.env.NODE_ENV === 'development' && console.debug(stuff);
-    _actions_core__WEBPACK_IMPORTED_MODULE_0___default().debug(stuff);
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(stuff);
 };
 const globMatch = (file, globs) => globs.some((glob) => (0,minimatch__WEBPACK_IMPORTED_MODULE_3__.minimatch)(file, glob));
 /**
@@ -8001,7 +8001,7 @@ const getExcludedFiles = (client) => __awaiter(void 0, void 0, void 0, function*
     try {
         // There might be a type for this somewhere
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data } = yield client.rest.repos.getContent(Object.assign(Object.assign({}, (_actions_github__WEBPACK_IMPORTED_MODULE_1___default().context.repo)), { path }));
+        const { data } = yield client.rest.repos.getContent(Object.assign(Object.assign({}, _actions_github__WEBPACK_IMPORTED_MODULE_1__.context.repo), { path }));
         const excludedFiles = data.content
             ? Buffer.from(data.content, 'base64')
                 .toString('ascii')
@@ -8018,14 +8018,14 @@ const getExcludedFiles = (client) => __awaiter(void 0, void 0, void 0, function*
 });
 const ensureLabelExists = (client, name, color) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        return yield client.rest.issues.getLabel(Object.assign(Object.assign({}, (_actions_github__WEBPACK_IMPORTED_MODULE_1___default().context.repo)), { name }));
+        return yield client.rest.issues.getLabel(Object.assign(Object.assign({}, _actions_github__WEBPACK_IMPORTED_MODULE_1__.context.repo), { name }));
     }
     catch (e) {
-        return client.rest.issues.createLabel(Object.assign(Object.assign({}, (_actions_github__WEBPACK_IMPORTED_MODULE_1___default().context.repo)), { name, color }));
+        return client.rest.issues.createLabel(Object.assign(Object.assign({}, _actions_github__WEBPACK_IMPORTED_MODULE_1__.context.repo), { name, color }));
     }
 });
 const handlePullRequest = (context) => __awaiter(void 0, void 0, void 0, function* () {
-    const client = _actions_github__WEBPACK_IMPORTED_MODULE_1___default().getOctokit(_actions_core__WEBPACK_IMPORTED_MODULE_0___default().getInput('token'));
+    const client = _actions_github__WEBPACK_IMPORTED_MODULE_1__.getOctokit(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('token'));
     const { pull_request: { number }, pull_request: pullRequest } = context.payload;
     let { additions, deletions } = pullRequest;
     info(`Processing pull request ${number} in ${context.repo.repo}`);
@@ -8033,7 +8033,7 @@ const handlePullRequest = (context) => __awaiter(void 0, void 0, void 0, functio
     const excludedFiles = yield getExcludedFiles(client);
     // if files are excluded, remove them from the additions/deletions total
     for (const file of fileData.data) {
-        const g = new (_noqcks_generated__WEBPACK_IMPORTED_MODULE_2___default())(file.filename, file.patch);
+        const g = new _noqcks_generated__WEBPACK_IMPORTED_MODULE_2__(file.filename, file.patch);
         if (globMatch(file.filename, excludedFiles) || g.isGenerated()) {
             info(`Excluding file: ${file.filename}`);
             additions -= file.additions;
@@ -8061,17 +8061,17 @@ const handlePullRequest = (context) => __awaiter(void 0, void 0, void 0, functio
 });
 const run = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const context = (_actions_github__WEBPACK_IMPORTED_MODULE_1___default().context);
+        const context = _actions_github__WEBPACK_IMPORTED_MODULE_1__.context;
         if (context.eventName === 'pull_request') {
             handlePullRequest(context);
         }
         else {
-            return _actions_core__WEBPACK_IMPORTED_MODULE_0___default().warning('No relevant event found');
+            return _actions_core__WEBPACK_IMPORTED_MODULE_0__.warning('No relevant event found');
         }
     }
     catch (e) {
         error(e.message);
-        return _actions_core__WEBPACK_IMPORTED_MODULE_0___default().setFailed(e.message);
+        return _actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(e.message);
     }
 });
 run();
