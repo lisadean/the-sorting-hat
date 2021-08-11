@@ -1,6 +1,5 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import * as Generated from '@noqcks/generated';
 import { minimatch } from 'minimatch';
 import { PullRequestEvent } from '@octokit/webhooks-types';
 import { Context } from '@actions/github/lib/context';
@@ -116,8 +115,7 @@ const handlePullRequest = async (context: Context) => {
 
 	// if files are excluded, remove them from the additions/deletions total
 	for (const file of fileData.data) {
-		const g = new Generated(file.filename, file.patch);
-		if (globMatch(file.filename, excludedFiles) || g.isGenerated()) {
+		if (globMatch(file.filename, excludedFiles)) {
 			info(`Excluding file: ${file.filename}`);
 			additions -= file.additions;
 			deletions -= file.deletions;
@@ -153,7 +151,7 @@ const run = async () => {
 	try {
 		const context = github.context;
 		if (context.eventName === 'pull_request') {
-			handlePullRequest(context);
+			await handlePullRequest(context);
 		} else {
 			return core.warning('No relevant event found');
 		}
