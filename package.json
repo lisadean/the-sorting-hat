@@ -13,7 +13,7 @@
 	"scripts": {
 		"all": "npm run format && npm run lint && npm run build",
 		"all:test": "npm run format && npm run lint && npm run build && npm test",
-		"build": "ncc build src/index.js",
+		"build": "ncc build src/index.ts",
 		"format": "prettier --write **/*.ts",
 		"lint": "eslint src/**/*.ts",
 		"test": "jest"
