@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { minimatch } from 'minimatch';
+import * as minimatch from 'minimatch';
 import { PullRequestEvent } from '@octokit/webhooks-types';
 import { Context } from '@actions/github/lib/context';
 
