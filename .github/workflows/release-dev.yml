@@ -25,6 +25,12 @@ jobs:
                 npm run build
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Release dry-run
+              # This will just show what would happen during the real release process
+              # on the next merge to main
+              run: npx semantic-release --dry-run
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Commit dist folder and push to vdev branch
               run: |
                 git config user.name "Automation"
