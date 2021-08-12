@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import * as minimatch from 'minimatch';
+import { minimatch } from 'minimatch';
 import { PullRequestEvent } from '@octokit/webhooks-types';
 import { Context } from '@actions/github/lib/context';
 
@@ -90,7 +90,6 @@ const ensureLabelExists = async (client: ClientType, name: Labels, color: Colors
 
 const handlePullRequest = async (context: Context) => {
 	const client: ClientType = github.getOctokit(core.getInput('token'));
-	throw new Error('an error');
 
 	const {
 		pull_request: { number, title },
