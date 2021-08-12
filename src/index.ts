@@ -29,6 +29,7 @@ enum Colors {
 }
 
 enum Sizes {
+	XS = 0,
 	S = 10,
 	M = 30,
 	L = 100,
