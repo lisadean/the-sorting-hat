@@ -1,28 +1,42 @@
-name: Release to dev
+name: Release to vdev
 on:
     push:
       branches:
         - dev
 jobs:
     release:
-        name: release
+        name: release-vdev
         runs-on: ubuntu-latest
         steps:
             - uses: styfle/cancel-workflow-action@0.8.0
               with:
                   access_token: ${{ secrets.GITHUB_TOKEN }}
-            - uses: actions/checkout@v2
+            - name: Checkout repo
+              uses: actions/checkout@v2
               with:
-                fetch-depth: 0
+                  fetch-depth: 0
             - uses: actions/setup-node@v2
               with:
                   node-version: 16
                   cache: npm
-            - run: npm ci
-            - run: npm run build
-            - run: npm run package
-            - run: rm .gitignore # dist/ folder is ignored by default
-            # This workflow skips the semantic-release because we don't need to bump the version
-            - run: 'git push https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/vdev'
+            - name: Build
+              run: |
+                npm ci
+                npm run build
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Release dry-run
+              # This will just show what would happen during the real release process
+              # on the next merge to main
+              run: npx semantic-release --dry-run
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Commit dist folder and push to vdev branch
+              run: |
+                git config user.name "Automation"
+                git config user.email Automation@build.com
+                git add --force ./dist/*
+                git commit -m "ncc build files"
+                git push --force https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/vdev
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,11 +1,14 @@
-import core from '@actions/core';
-import github from '@actions/github';
-import Generated from '@noqcks/generated';
-import { minimatch } from 'minimatch';
-import { PullRequestEvent } from '@octokit/webhooks-types';
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+// TODO: maybe replace this with @actions/glob
+import * as minimatch from 'minimatch';
 import { Context } from '@actions/github/lib/context';
+import { PullRequestEvent } from '@octokit/webhooks-types';
+import { GetResponseTypeFromEndpointMethod } from '@octokit/types';
 
 type ClientType = ReturnType<typeof github.getOctokit>;
+const client: ClientType = github.getOctokit(core.getInput('token'));
+type GetContentResponseType = GetResponseTypeFromEndpointMethod<typeof client.rest.repos.getContent>;
 
 enum Labels {
 	XS = 'size/XS',
@@ -26,6 +29,7 @@ enum Colors {
 }
 
 enum Sizes {
+	XS = 0,
 	S = 10,
 	M = 30,
 	L = 100,
@@ -33,21 +37,10 @@ enum Sizes {
 	Xxl = 1000
 }
 
-const info = (stuff: string) => {
-	// eslint-disable-next-line no-console
-	console.info(stuff);
-	core.info(stuff);
-};
-const error = (stuff: string | Error) => {
-	// eslint-disable-next-line no-console
-	console.error(stuff);
-	core.error(stuff);
-};
-const debug = (stuff: string) => {
-	// eslint-disable-next-line no-console
-	process.env.NODE_ENV === 'development' && console.debug(stuff);
-	core.debug(stuff);
-};
+const info = (stuff: string) => core.info(stuff);
+const error = (stuff: string | Error) => core.error(stuff);
+const debug = (stuff: string) => core.debug(stuff);
+
 const globMatch = (file: string, globs: string[]) => globs.some((glob) => minimatch(file, glob));
 
 /**
@@ -75,9 +68,9 @@ const getExcludedFiles = async (client: ClientType) => {
 	const path = '.gitattributes';
 	const exclusions = ['linguist-generated=true', 'pr-size-ignore=true'];
 	try {
-		// There might be a type for this somewhere
+		// TODO: Can't figure out how to fix data.content ts warning without adding the any type
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const { data }: any = await client.rest.repos.getContent({ ...github.context.repo, path });
+		const { data }: GetContentResponseType | any = await client.rest.repos.getContent({ ...github.context.repo, path });
 		const excludedFiles = data.content
 			? Buffer.from(data.content, 'base64')
 					.toString('ascii')
@@ -101,23 +94,20 @@ const ensureLabelExists = async (client: ClientType, name: Labels, color: Colors
 };
 
 const handlePullRequest = async (context: Context) => {
-	const client: ClientType = github.getOctokit(core.getInput('token'));
-
 	const {
-		pull_request: { number },
+		pull_request: { number, title },
 		pull_request: pullRequest
 	}: PullRequestEvent = context.payload as PullRequestEvent;
 
 	let { additions, deletions } = pullRequest;
-	info(`Processing pull request ${number} in ${context.repo.repo}`);
+	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
 
 	const fileData = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
 	const excludedFiles = await getExcludedFiles(client);
 
 	// if files are excluded, remove them from the additions/deletions total
 	for (const file of fileData.data) {
-		const g = new Generated(file.filename, file.patch);
-		if (globMatch(file.filename, excludedFiles) || g.isGenerated()) {
+		if (globMatch(file.filename, excludedFiles)) {
 			info(`Excluding file: ${file.filename}`);
 			additions -= file.additions;
 			deletions -= file.deletions;
@@ -153,12 +143,12 @@ const run = async () => {
 	try {
 		const context = github.context;
 		if (context.eventName === 'pull_request') {
-			handlePullRequest(context);
+			await handlePullRequest(context);
 		} else {
 			return core.warning('No relevant event found');
 		}
 	} catch (e) {
-		error(e.message);
+		error(e);
 		return core.setFailed(e.message);
 	}
 };
