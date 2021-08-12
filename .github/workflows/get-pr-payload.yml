@@ -1,0 +1,17 @@
+name: Get PR Payload
+on:
+  pull_request:
+
+jobs:
+  pr-payload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump github context to file
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+        run: echo "$GITHUB_CONTEXT" > ${{ github.event_name }}-${{ github.run_id }}-payload.json
+      - name: Upload to artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ github.event_name }}-${{ github.run_id }}-payload
+          path: ${{ github.event_name }}-${{ github.run_id }}-payload.json
