@@ -12,14 +12,14 @@ jobs:
               with:
                   node-version: 16
                   cache: npm
-            - name: Bump version & tag
-              run: npx semantic-release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Build
               run: |
                 npm ci
                 npm run build
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Bump version & tag
+              run: npx semantic-release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Commit dist folder and push to v1 branch
