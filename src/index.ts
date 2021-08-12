@@ -1,10 +1,14 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
+// TODO: maybe replace this with @actions/glob
 import * as minimatch from 'minimatch';
-import { PullRequestEvent } from '@octokit/webhooks-types';
 import { Context } from '@actions/github/lib/context';
+import { PullRequestEvent } from '@octokit/webhooks-types';
+import { GetResponseTypeFromEndpointMethod } from '@octokit/types';
 
 type ClientType = ReturnType<typeof github.getOctokit>;
+const client: ClientType = github.getOctokit(core.getInput('token'));
+type GetContentResponseType = GetResponseTypeFromEndpointMethod<typeof client.rest.repos.getContent>;
 
 enum Labels {
 	XS = 'size/XS',
@@ -63,15 +67,9 @@ const getExcludedFiles = async (client: ClientType) => {
 	const path = '.gitattributes';
 	const exclusions = ['linguist-generated=true', 'pr-size-ignore=true'];
 	try {
-		// TODO: There's probably a better way to type this. Can't figure out how to fix data.content ts warning without any
-		//
-		// Ideas:
-		// Infer the return type U from a thenable promise (PromiseLike), otherwise just return the generic T
-		// type UnWrapPromiseType<T> = T extends PromiseLike<infer U> ? U : T;
-		// const { data }: UnWrapPromiseType<ReturnType<typeof client.rest.repos.getContent>>
-		//
+		// TODO: Can't figure out how to fix data.content ts warning without adding the any type
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const { data }: any = await client.rest.repos.getContent({ ...github.context.repo, path });
+		const { data }: GetContentResponseType | any = await client.rest.repos.getContent({ ...github.context.repo, path });
 		const excludedFiles = data.content
 			? Buffer.from(data.content, 'base64')
 					.toString('ascii')
@@ -95,8 +93,6 @@ const ensureLabelExists = async (client: ClientType, name: Labels, color: Colors
 };
 
 const handlePullRequest = async (context: Context) => {
-	const client: ClientType = github.getOctokit(core.getInput('token'));
-
 	const {
 		pull_request: { number, title },
 		pull_request: pullRequest
