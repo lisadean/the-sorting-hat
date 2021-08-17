@@ -63,8 +63,6 @@ const error = (stuff: string | Error) => {
 	}
 };
 
-const globMatch = (file: string, globs: string[]) => globs.some((glob) => minimatch(file, glob));
-
 /**
  * sizeLabel will return a string label that can be assigned to a
  * GitHub Pull Request. The label is determined by the lines of code
@@ -119,6 +117,7 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 	let totalChangedLines = changedLines;
 	let totalChangedLinesInExcludedFiles = 0;
 	const excludedFiles = await getExcludedFiles();
+	const globMatch = (file: string, globs: string[]) => globs.some((glob) => minimatch(file, glob));
 	for (const file of files) {
 		if (globMatch(file.filename, excludedFiles)) {
 			info(`Excluding file: ${file.filename}`);
@@ -147,7 +146,7 @@ const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	for (const file of files) {
 		info(`file: ${file.filename}`);
 	}
-	const serverOnly = files.some((file) => !minimatch(file.filename, serverOnlyPattern));
+	const serverOnly = files.some((file) => minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
 		info('This PR is server only and has no UI changes');
 	}
@@ -165,17 +164,13 @@ const handlePullRequest = async () => {
 	}: PullRequestEvent = context.payload as PullRequestEvent;
 	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
 
-	const labelsToAdd: string[] = [];
-	const labelsToRemove: Label[] = [];
 	const { data: prFiles } = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
 
 	const { sizeLabelToAdd, sizeLabelsToRemove } = await getSizeBasedLabels(additions + deletions, prFiles, prLabels);
-	labelsToAdd.concat(sizeLabelToAdd);
-	labelsToRemove.concat(sizeLabelsToRemove);
-
 	const { serverOnlyLabelToAdd, serverOnlyLabelToRemove } = getServerOnlyLabel(prFiles, prLabels);
-	labelsToAdd.concat(serverOnlyLabelToAdd);
-	labelsToRemove.concat(serverOnlyLabelToRemove);
+
+	const labelsToAdd: string[] = ([] as string[]).concat(sizeLabelToAdd, serverOnlyLabelToAdd);
+	const labelsToRemove: Label[] = ([] as Label[]).concat(sizeLabelsToRemove, serverOnlyLabelToRemove);
 
 	info(`labels to add: ${labelsToAdd}`);
 	info(`labels to remove: ${labelsToRemove}`);
