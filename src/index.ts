@@ -175,12 +175,11 @@ const handlePullRequest = async () => {
 	info(`labels to remove: ${labelsToRemove}`);
 	for (const label of labelsToRemove) {
 		info(`Removing label ${label.name}`);
-		const stuff = await client.rest.issues.removeLabel({
+		await client.rest.issues.removeLabel({
 			...context.repo,
 			issue_number: number,
 			name: label.name
 		});
-		stuff.
 	}
 	for (const label of labelsToAdd) {
 		await ensureLabelExists(label, Colors[label]);
