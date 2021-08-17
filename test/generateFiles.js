@@ -12,7 +12,7 @@ const fileName = path.join(__dirname, 'fixtures', `${lineCount}lines.txt`);
 console.log(fileName);
 
 fs.writeFile(fileName, stuff, null, () =>
-	child.exec(`git add ${fileName}; git commit -m '${lineCount}'; git push`, (error, stdout, stderr) =>
+	child.exec(`git add ${fileName}; git commit --no-verify -m '${lineCount}'; git push`, (error, stdout, stderr) =>
 		console.log(`error: ${error} stdout: ${stdout} stderr: ${stderr}`)
 	)
 );
