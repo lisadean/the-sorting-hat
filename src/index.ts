@@ -31,7 +31,8 @@ enum Labels {
 	M = 'size/M',
 	L = 'size/L',
 	XL = 'size/XL',
-	XXL = 'size/XXL'
+	XXL = 'size/XXL',
+	SERVERONLY = 'server-only'
 }
 
 enum Colors {
@@ -40,7 +41,8 @@ enum Colors {
 	'size/M' = '7F7203',
 	'size/L' = 'A14C05',
 	'size/XL' = 'C32607',
-	'size/XXL' = 'E50009'
+	'size/XXL' = 'E50009',
+	'server-only' = '66E5A2'
 }
 
 enum Sizes {
@@ -135,6 +137,18 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 	return { sizeLabelToAdd: labelToAdd, sizeLabelsToRemove: labelsToRemove };
 };
 
+const getServerOnlyLabel = async (files: File[], labels: Label[]) => {
+	const serverOnlyPattern = '**/src/server/**';
+	const serverOnly = !files.some((file) => minimatch(file.filename, serverOnlyPattern));
+	if (serverOnly) {
+		info('Server only PR');
+	}
+	const existingLabel = labels.find((label) => label.name === Labels.SERVERONLY);
+	const labelToAdd: string = serverOnly && !existingLabel ? Labels.SERVERONLY : '';
+	const labelsToRemove: Label[] = !serverOnly && existingLabel ? [existingLabel] : [];
+	return { serverOnlyLabelToAdd: labelToAdd, serverOnlyLabelToRemove: labelsToRemove };
+};
+
 const handlePullRequest = async () => {
 	const {
 		pull_request: { number, title, labels: prLabels, additions, deletions }
@@ -148,6 +162,10 @@ const handlePullRequest = async () => {
 	const { sizeLabelToAdd, sizeLabelsToRemove } = await getSizeBasedLabels(additions + deletions, prFiles, prLabels);
 	labelsToAdd.push(sizeLabelToAdd);
 	labelsToRemove.concat(sizeLabelsToRemove);
+
+	const { serverOnlyLabelToAdd, serverOnlyLabelToRemove } = await getServerOnlyLabel(prFiles, prLabels);
+	labelsToAdd.push(serverOnlyLabelToAdd);
+	labelsToRemove.concat(serverOnlyLabelToRemove);
 
 	for (const label of labelsToRemove) {
 		info(`Removing label ${label.name}`);
