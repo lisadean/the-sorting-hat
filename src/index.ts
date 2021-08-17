@@ -55,8 +55,12 @@ enum Sizes {
 }
 
 const info = (stuff: string) => core.info(stuff);
-const error = (stuff: string | Error) => core.error(stuff);
-const debug = (stuff: string) => core.debug(stuff);
+const error = (stuff: string | Error) => {
+	core.error(stuff);
+	if (typeof stuff !== 'string') {
+		stuff.stack && core.error(stuff.stack);
+	}
+};
 
 const globMatch = (file: string, globs: string[]) => globs.some((glob) => minimatch(file, glob));
 
