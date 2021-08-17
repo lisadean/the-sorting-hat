@@ -145,6 +145,9 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	const serverOnlyPattern = '**/src/server/**';
 	console.dir(`files: ${JSON.stringify(files, null, 2)}`);
+	for (const file of files) {
+		info(`file: ${file.filename}`);
+	}
 	const serverOnly = files.some((file) => !minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
 		info('This PR is server only and has no UI changes');
