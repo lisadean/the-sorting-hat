@@ -138,8 +138,8 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 };
 
 const getServerOnlyLabel = async (files: File[], labels: Label[]) => {
-	const serverOnlyPattern = '**/src/server/**';
-	const serverOnly = !files.some((file) => minimatch(file.filename, serverOnlyPattern));
+	const serverOnlyPattern = '!**/src/server/**';
+	const serverOnly = files.some((file) => minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
 		info('Server only PR');
 	}
