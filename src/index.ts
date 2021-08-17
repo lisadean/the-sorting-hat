@@ -139,17 +139,17 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 			}
 		}
 	}
-	return { sizeLabelToAdd: labelToAdd, sizeLabelsToRemove: labelsToRemove };
+	return { sizeLabelToAdd: [labelToAdd], sizeLabelsToRemove: labelsToRemove };
 };
 
 const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	const serverOnlyPattern = '!**/src/server/**';
 	const serverOnly = files.some((file) => minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
-		info('Server only PR');
+		info('This PR is server only and has no UI changes');
 	}
 	const existingLabel = labels.find((label) => label.name === Labels.SERVERONLY);
-	const labelToAdd: string = serverOnly && !existingLabel ? Labels.SERVERONLY : '';
+	const labelToAdd: string[] = serverOnly && !existingLabel ? [Labels.SERVERONLY] : [];
 	const labelsToRemove: Label[] = !serverOnly && existingLabel ? [existingLabel] : [];
 	return { serverOnlyLabelToAdd: labelToAdd, serverOnlyLabelToRemove: labelsToRemove };
 };
@@ -165,14 +165,16 @@ const handlePullRequest = async () => {
 	const { data: prFiles } = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
 
 	const { sizeLabelToAdd, sizeLabelsToRemove } = await getSizeBasedLabels(additions + deletions, prFiles, prLabels);
-	labelsToAdd.push(sizeLabelToAdd);
+	labelsToAdd.concat(sizeLabelToAdd);
 	labelsToRemove.concat(sizeLabelsToRemove);
 
 	const { serverOnlyLabelToAdd, serverOnlyLabelToRemove } = getServerOnlyLabel(prFiles, prLabels);
-	labelsToAdd.push(serverOnlyLabelToAdd);
+	labelsToAdd.concat(serverOnlyLabelToAdd);
 	labelsToRemove.concat(serverOnlyLabelToRemove);
+
 	info(`labels to add: ${labelsToAdd}`);
 	info(`labels to remove: ${labelsToRemove}`);
+
 	for (const label of labelsToRemove) {
 		info(`Removing label ${label.name}`);
 		await client.rest.issues.removeLabel({
@@ -181,11 +183,11 @@ const handlePullRequest = async () => {
 			name: label.name
 		});
 	}
+
+	info(`Adding label: ${labelsToAdd}`);
 	for (const label of labelsToAdd) {
 		await ensureLabelExists(label, Colors[label]);
 	}
-	info(`Adding label: ${labelsToAdd}`);
-
 	return await client.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: labelsToAdd });
 };
 
