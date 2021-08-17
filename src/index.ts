@@ -108,9 +108,8 @@ const ensureLabelExists = async (name: string, color: Colors) => {
 	}
 };
 
-const getSizeBasedLabel = async (files: File[], labels: Label[]) => {
-	let { additions, deletions } = context.payload.pull_request;
-	let totalChangedLines = additions + deletions;
+const getSizeBasedLabels = async (changedLines: number, files: File[], labels: Label[]) => {
+	let totalChangedLines = changedLines;
 	let totalChangedLinesInExcludedFiles = 0;
 	const excludedFiles = await getExcludedFiles();
 	for (const file of files) {
@@ -138,7 +137,7 @@ const getSizeBasedLabel = async (files: File[], labels: Label[]) => {
 
 const handlePullRequest = async () => {
 	const {
-		pull_request: { number, title, labels: prLabels }
+		pull_request: { number, title, labels: prLabels, additions, deletions }
 	}: PullRequestEvent = context.payload as PullRequestEvent;
 	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
 
@@ -146,7 +145,7 @@ const handlePullRequest = async () => {
 	const labelsToRemove: Label[] = [];
 	const { data: prFiles } = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
 
-	const { sizeLabelToAdd, sizeLabelsToRemove } = await getSizeBasedLabel(prFiles, prLabels);
+	const { sizeLabelToAdd, sizeLabelsToRemove } = await getSizeBasedLabels(additions + deletions, prFiles, prLabels);
 	labelsToAdd.push(sizeLabelToAdd);
 	labelsToRemove.concat(sizeLabelsToRemove);
 
