@@ -154,7 +154,7 @@ const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	info(`existingLabel: ${JSON.stringify(existingLabel, null, 2)}`);
 	const labelToAdd: string[] = serverOnly && !existingLabel ? [Labels.SERVERONLY] : [];
 	const labelsToRemove: Label[] = !serverOnly && existingLabel ? [existingLabel] : [];
-	info(`labelToAd: ${labelToAdd} labelsToRemove: ${labelsToRemove}`);
+	info(`labelToAd: ${labelToAdd} labelsToRemove: ${JSON.stringify(labelsToRemove, null, 2)}`);
 	return { serverOnlyLabelToAdd: labelToAdd, serverOnlyLabelToRemove: labelsToRemove };
 };
 
@@ -172,8 +172,8 @@ const handlePullRequest = async () => {
 	const labelsToAdd: string[] = ([] as string[]).concat(sizeLabelToAdd, serverOnlyLabelToAdd);
 	const labelsToRemove: Label[] = ([] as Label[]).concat(sizeLabelsToRemove, serverOnlyLabelToRemove);
 
-	info(`labels to add: ${labelsToAdd}`);
-	info(`labels to remove: ${labelsToRemove}`);
+	info(`labels to add: ${JSON.stringify(labelsToAdd, null, 2)}`);
+	info(`labels to remove: ${JSON.stringify(labelsToRemove, null, 2)}`);
 
 	for (const label of labelsToRemove) {
 		info(`Removing label ${label.name}`);
