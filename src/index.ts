@@ -143,14 +143,17 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 };
 
 const getServerOnlyLabel = (files: File[], labels: Label[]) => {
-	const serverOnlyPattern = '!**/src/server/**';
-	const serverOnly = files.some((file) => minimatch(file.filename, serverOnlyPattern));
+	const serverOnlyPattern = '**/src/server/**';
+	console.dir(`files: ${files}`);
+	const serverOnly = files.some((file) => !minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
 		info('This PR is server only and has no UI changes');
 	}
 	const existingLabel = labels.find((label) => label.name === Labels.SERVERONLY);
+	info(`existingLabel: ${existingLabel}`);
 	const labelToAdd: string[] = serverOnly && !existingLabel ? [Labels.SERVERONLY] : [];
 	const labelsToRemove: Label[] = !serverOnly && existingLabel ? [existingLabel] : [];
+	info(`labelToAd: ${labelToAdd} labelsToRemove: ${labelsToRemove}`);
 	return { serverOnlyLabelToAdd: labelToAdd, serverOnlyLabelToRemove: labelsToRemove };
 };
 
