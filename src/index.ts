@@ -56,9 +56,10 @@ enum Sizes {
 
 const info = (stuff: string) => core.info(stuff);
 const error = (stuff: string | Error) => {
-	core.error(stuff);
-	if (typeof stuff !== 'string') {
-		stuff.stack && core.error(stuff.stack);
+	if (typeof stuff !== 'string' && stuff.stack) {
+		core.error(stuff.stack);
+	} else {
+		core.error(stuff);
 	}
 };
 
@@ -197,7 +198,7 @@ const run = async () => {
 		}
 	} catch (e) {
 		error(e);
-		return core.setFailed(e.message);
+		return core.setFailed('Something went wrong');
 	}
 };
 
