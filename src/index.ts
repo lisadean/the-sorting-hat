@@ -142,7 +142,7 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 	return { sizeLabelToAdd: labelToAdd, sizeLabelsToRemove: labelsToRemove };
 };
 
-const getServerOnlyLabel = async (files: File[], labels: Label[]) => {
+const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	const serverOnlyPattern = '!**/src/server/**';
 	const serverOnly = files.some((file) => minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
@@ -168,17 +168,19 @@ const handlePullRequest = async () => {
 	labelsToAdd.push(sizeLabelToAdd);
 	labelsToRemove.concat(sizeLabelsToRemove);
 
-	const { serverOnlyLabelToAdd, serverOnlyLabelToRemove } = await getServerOnlyLabel(prFiles, prLabels);
+	const { serverOnlyLabelToAdd, serverOnlyLabelToRemove } = getServerOnlyLabel(prFiles, prLabels);
 	labelsToAdd.push(serverOnlyLabelToAdd);
 	labelsToRemove.concat(serverOnlyLabelToRemove);
-
+	info(`labels to add: ${labelsToAdd}`);
+	info(`labels to remove: ${labelsToRemove}`);
 	for (const label of labelsToRemove) {
 		info(`Removing label ${label.name}`);
-		await client.rest.issues.removeLabel({
+		const stuff = await client.rest.issues.removeLabel({
 			...context.repo,
 			issue_number: number,
 			name: label.name
 		});
+		stuff.
 	}
 	for (const label of labelsToAdd) {
 		await ensureLabelExists(label, Colors[label]);
