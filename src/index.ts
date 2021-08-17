@@ -144,7 +144,6 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 
 const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	const serverOnlyPattern = '**/src/server/**';
-	console.dir(`files: ${JSON.stringify(files, null, 2)}`);
 	for (const file of files) {
 		info(`file: ${file.filename}`);
 	}
