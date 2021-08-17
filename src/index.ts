@@ -3,12 +3,27 @@ import * as github from '@actions/github';
 // TODO: maybe replace this with @actions/glob
 import * as minimatch from 'minimatch';
 import { Context } from '@actions/github/lib/context';
-import { PullRequestEvent } from '@octokit/webhooks-types';
+import { PullRequestEvent, Label } from '@octokit/webhooks-types';
 import { GetResponseTypeFromEndpointMethod } from '@octokit/types';
 
 type ClientType = ReturnType<typeof github.getOctokit>;
-const client: ClientType = github.getOctokit(core.getInput('token'));
 type GetContentResponseType = GetResponseTypeFromEndpointMethod<typeof client.rest.repos.getContent>;
+type File = {
+	sha: string;
+	filename: string;
+	status: string;
+	additions: number;
+	deletions: number;
+	changes: number;
+	blob_url: string;
+	raw_url: string;
+	contents_url: string;
+	patch?: string;
+	previous_filename?: string;
+};
+
+let context: Context;
+const client: ClientType = github.getOctokit(core.getInput('token'));
 
 enum Labels {
 	XS = 'size/XS',
@@ -49,7 +64,7 @@ const globMatch = (file: string, globs: string[]) => globs.some((glob) => minima
  * in the Pull Request.
  * @param lineCount The number of lines in the Pull Request.
  */
-const sizeLabel = (lineCount: number): Labels => {
+const sizeLabel = (lineCount: number) => {
 	if (lineCount < Sizes.S) {
 		return Labels.XS;
 	} else if (lineCount < Sizes.M) {
@@ -64,7 +79,7 @@ const sizeLabel = (lineCount: number): Labels => {
 	return Labels.XXL;
 };
 
-const getExcludedFiles = async (client: ClientType) => {
+const getExcludedFiles = async () => {
 	const path = '.gitattributes';
 	const exclusions = ['linguist-generated=true', 'pr-size-ignore=true'];
 	try {
@@ -85,7 +100,7 @@ const getExcludedFiles = async (client: ClientType) => {
 	}
 };
 
-const ensureLabelExists = async (client: ClientType, name: Labels, color: Colors) => {
+const ensureLabelExists = async (name: string, color: Colors) => {
 	try {
 		return await client.rest.issues.getLabel({ ...github.context.repo, name });
 	} catch (e) {
@@ -93,57 +108,69 @@ const ensureLabelExists = async (client: ClientType, name: Labels, color: Colors
 	}
 };
 
-const handlePullRequest = async (context: Context) => {
-	const {
-		pull_request: { number, title },
-		pull_request: pullRequest
-	}: PullRequestEvent = context.payload as PullRequestEvent;
-
-	let { additions, deletions } = pullRequest;
-	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
-
-	const fileData = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
-	const excludedFiles = await getExcludedFiles(client);
-
-	// if files are excluded, remove them from the additions/deletions total
-	for (const file of fileData.data) {
+const getSizeBasedLabel = async (files: File[], labels: Label[]) => {
+	let { additions, deletions } = context.payload.pull_request;
+	let totalChangedLines = additions + deletions;
+	let totalChangedLinesInExcludedFiles = 0;
+	const excludedFiles = await getExcludedFiles();
+	for (const file of files) {
 		if (globMatch(file.filename, excludedFiles)) {
 			info(`Excluding file: ${file.filename}`);
-			additions -= file.additions;
-			deletions -= file.deletions;
+			totalChangedLines -= file.additions + file.deletions;
+			totalChangedLinesInExcludedFiles += file.additions + file.deletions;
 		}
 	}
-	const totalChangedLines = additions + deletions;
-	const labelToAdd: Labels = sizeLabel(totalChangedLines);
-	info(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
 
-	// remove old size/<size> label if it no longer applies
-	for (const prLabel of pullRequest.labels) {
-		debug(`PR label: ${prLabel.name}`);
-		debug(`Labels: ${Object.values(Labels)}`);
+	info(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
+	info(`Total number of additions and deletions in excluded files: ${totalChangedLinesInExcludedFiles}`);
+	const labelToAdd = sizeLabel(totalChangedLines).toString();
+
+	let labelsToRemove: Label[] = [];
+	for (const prLabel of labels) {
 		if (Object.values(Labels).toString().includes(prLabel.name)) {
 			if (prLabel.name !== labelToAdd) {
-				info(`Removing label ${prLabel.name}`);
-				await client.rest.issues.removeLabel({
-					...context.repo,
-					issue_number: number,
-					name: prLabel.name
-				});
+				labelsToRemove.push(prLabel);
 			}
 		}
 	}
+	return { sizeLabelToAdd: labelToAdd, sizeLabelsToRemove: labelsToRemove };
+};
 
-	// Add label
-	await ensureLabelExists(client, labelToAdd, Colors[labelToAdd]);
-	info(`Adding label: ${labelToAdd}`);
-	return await client.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [labelToAdd] });
+const handlePullRequest = async () => {
+	const {
+		pull_request: { number, title, labels: prLabels }
+	}: PullRequestEvent = context.payload as PullRequestEvent;
+	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
+
+	const labelsToAdd: string[] = [];
+	const labelsToRemove: Label[] = [];
+	const { data: prFiles } = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
+
+	const { sizeLabelToAdd, sizeLabelsToRemove } = await getSizeBasedLabel(prFiles, prLabels);
+	labelsToAdd.push(sizeLabelToAdd);
+	labelsToRemove.concat(sizeLabelsToRemove);
+
+	for (const label of labelsToRemove) {
+		info(`Removing label ${label.name}`);
+		await client.rest.issues.removeLabel({
+			...context.repo,
+			issue_number: number,
+			name: label.name
+		});
+	}
+	for (const label of labelsToAdd) {
+		await ensureLabelExists(label, Colors[label]);
+	}
+	info(`Adding label: ${labelsToAdd}`);
+
+	return await client.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: labelsToAdd });
 };
 
 const run = async () => {
 	try {
-		const context = github.context;
+		context = github.context;
 		if (context.eventName === 'pull_request') {
-			await handlePullRequest(context);
+			await handlePullRequest();
 		} else {
 			return core.warning('No relevant event found');
 		}
