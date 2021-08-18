@@ -147,7 +147,7 @@ const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 		info(`file: ${file.filename}`);
 	}
 	const serverOnly = files.some((file) => {
-		const temp = minimatch(file.filename, serverOnlyPattern);
+		const temp = !minimatch(file.filename, serverOnlyPattern);
 		console.log(`${file.filename} = ${temp}`);
 		return temp;
 	});
