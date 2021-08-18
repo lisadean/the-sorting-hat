@@ -146,11 +146,7 @@ const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	for (const file of files) {
 		info(`file: ${file.filename}`);
 	}
-	const serverOnly = files.some((file) => {
-		const temp = !minimatch(file.filename, serverOnlyPattern);
-		console.log(`${file.filename} = ${temp}`);
-		return temp;
-	});
+	const serverOnly = !files.some((file) => !minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
 		info('This PR is server only and has no UI changes');
 	}
