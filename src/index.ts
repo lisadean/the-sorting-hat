@@ -156,7 +156,7 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], existingP
 			labelsToRemove.push(label);
 		}
 	}
-	debug(`labelToAdd-size: ${labelToAdd} labelsToRemove-size: ${JSON.stringify(labelsToRemove, null, 2)}`);
+	debug(`labelToAdd-size: ${getLabelNames(labelToAdd)} labelsToRemove-size: ${getLabelNames(labelsToRemove)}`);
 	return { labelToAdd, labelsToRemove };
 };
 
@@ -202,8 +202,8 @@ const handlePullRequest = async () => {
 	const labelsToAdd: CustomLabel[] = sizeLabelToAdd.concat(serverOnlyLabelToAdd);
 	const labelsToRemove: GitHubLabel[] = sizeLabelsToRemove.concat(serverOnlyLabelToRemove);
 
-	debug(`labels to add: ${JSON.stringify(labelsToAdd, null, 2)}`);
-	debug(`labels to remove: ${JSON.stringify(labelsToRemove, null, 2)}`);
+	debug(`labels to add: ${getLabelNames(labelsToAdd)}`);
+	debug(`labels to remove: ${getLabelNames(labelsToRemove)}`);
 
 	if (labelsToRemove.length > 0) {
 		for (const label of labelsToRemove) {
