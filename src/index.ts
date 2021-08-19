@@ -1,13 +1,11 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-// TODO: maybe replace this with @actions/glob
 import * as minimatch from 'minimatch';
 import { Context } from '@actions/github/lib/context';
-import { PullRequestEvent, Label } from '@octokit/webhooks-types';
-import { GetResponseTypeFromEndpointMethod } from '@octokit/types';
+import { PullRequestEvent, Label as GitHubLabel } from '@octokit/webhooks-types';
 
-type ClientType = ReturnType<typeof github.getOctokit>;
-type GetContentResponseType = GetResponseTypeFromEndpointMethod<typeof client.rest.repos.getContent>;
+const DEBUG = true; // set this to true for extra logging
+
 type File = {
 	sha: string;
 	filename: string;
@@ -22,37 +20,60 @@ type File = {
 	previous_filename?: string;
 };
 
+type CustomLabel = {
+	name: string;
+	color: string;
+	type?: string;
+	maxLines?: number;
+};
+
+type LabelChanges = { labelToAdd: CustomLabel[]; labelsToRemove: GitHubLabel[] };
+
 let context: Context;
-const client: ClientType = github.getOctokit(core.getInput('token'));
+const client = github.getOctokit(core.getInput('token'));
 
-enum Labels {
-	XS = 'size/XS',
-	S = 'size/S',
-	M = 'size/M',
-	L = 'size/L',
-	XL = 'size/XL',
-	XXL = 'size/XXL',
-	SERVERONLY = 'server-only'
-}
-
-enum Colors {
-	'size/XS' = '3CBF00',
-	'size/S' = '5D9801',
-	'size/M' = '7F7203',
-	'size/L' = 'A14C05',
-	'size/XL' = 'C32607',
-	'size/XXL' = 'E50009',
-	'server-only' = '66E5A2'
-}
-
-enum Sizes {
-	XS = 0,
-	S = 10,
-	M = 30,
-	L = 100,
-	Xl = 500,
-	Xxl = 1000
-}
+const customLabels: CustomLabel[] = [
+	{
+		name: 'size/XS',
+		type: 'size',
+		maxLines: 10,
+		color: '3CBF00'
+	},
+	{
+		name: 'size/S',
+		type: 'size',
+		maxLines: 30,
+		color: '5D9801'
+	},
+	{
+		name: 'size/M',
+		type: 'size',
+		maxLines: 100,
+		color: '7F7203'
+	},
+	{
+		name: 'size/L',
+		type: 'size',
+		maxLines: 500,
+		color: 'A14C05'
+	},
+	{
+		name: 'size/XL',
+		type: 'size',
+		maxLines: 1000,
+		color: 'C32607'
+	},
+	{
+		name: 'size/XXL',
+		type: 'size',
+		color: 'E50009'
+	},
+	{
+		name: 'server-only',
+		type: 'server-only',
+		color: '66E5A2'
+	}
+];
 
 const info = (stuff: string) => core.info(stuff);
 const error = (stuff: string | Error) => {
@@ -62,35 +83,27 @@ const error = (stuff: string | Error) => {
 		core.error(stuff);
 	}
 };
+const debug = (stuff: string) => DEBUG && core.info(`DEBUG: ${stuff}`);
 
-/**
- * sizeLabel will return a string label that can be assigned to a
- * GitHub Pull Request. The label is determined by the lines of code
- * in the Pull Request.
- * @param lineCount The number of lines in the Pull Request.
- */
-const sizeLabel = (lineCount: number) => {
-	if (lineCount < Sizes.S) {
-		return Labels.XS;
-	} else if (lineCount < Sizes.M) {
-		return Labels.S;
-	} else if (lineCount < Sizes.L) {
-		return Labels.M;
-	} else if (lineCount < Sizes.Xl) {
-		return Labels.L;
-	} else if (lineCount < Sizes.Xxl) {
-		return Labels.XL;
+const sortedSizeLabels = customLabels
+	.filter((label) => label.type === 'size')
+	.sort((a, b) => (!a.maxLines ? 1 : !b.maxLines ? -1 : a.maxLines - b.maxLines));
+
+const getSizeLabel = (lineCount: number): CustomLabel | undefined => {
+	for (const label of sortedSizeLabels) {
+		if (!label.maxLines || lineCount <= label.maxLines) {
+			return label;
+		}
 	}
-	return Labels.XXL;
+	return;
 };
 
-const getExcludedFiles = async () => {
+const getExcludedGlobs = async () => {
 	const path = '.gitattributes';
 	const exclusions = ['linguist-generated=true', 'pr-size-ignore=true'];
 	try {
-		// TODO: Can't figure out how to fix data.content ts warning without adding the any type
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const { data }: GetContentResponseType | any = await client.rest.repos.getContent({ ...github.context.repo, path });
+		const { data }: any = await client.rest.repos.getContent({ ...github.context.repo, path });
 		const excludedFiles = data.content
 			? Buffer.from(data.content, 'base64')
 					.toString('ascii')
@@ -105,7 +118,7 @@ const getExcludedFiles = async () => {
 	}
 };
 
-const ensureLabelExists = async (name: string, color: Colors) => {
+const ensureLabelExists = async ({ name, color }: CustomLabel) => {
 	try {
 		return await client.rest.issues.getLabel({ ...github.context.repo, name });
 	} catch (e) {
@@ -113,13 +126,12 @@ const ensureLabelExists = async (name: string, color: Colors) => {
 	}
 };
 
-const getSizeBasedLabels = async (changedLines: number, files: File[], labels: Label[]) => {
+const getSizeBasedLabels = async (changedLines: number, files: File[], existingPRLabels: GitHubLabel[]): Promise<LabelChanges> => {
 	let totalChangedLines = changedLines;
 	let totalChangedLinesInExcludedFiles = 0;
-	const excludedFiles = await getExcludedFiles();
-	const globMatch = (file: string, globs: string[]) => globs.some((glob) => minimatch(file, glob));
+	const excludedGlobs = await getExcludedGlobs();
 	for (const file of files) {
-		if (globMatch(file.filename, excludedFiles)) {
+		if (excludedGlobs.some((glob) => minimatch(file.filename, glob))) {
 			info(`Excluding file: ${file.filename}`);
 			totalChangedLines -= file.additions + file.deletions;
 			totalChangedLinesInExcludedFiles += file.additions + file.deletions;
@@ -128,24 +140,33 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], labels: L
 
 	info(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
 	info(`Total number of additions and deletions in excluded files: ${totalChangedLinesInExcludedFiles}`);
-	const labelToAdd = sizeLabel(totalChangedLines).toString();
+	const correctSizeLabel: CustomLabel | undefined = getSizeLabel(totalChangedLines);
 
-	let labelsToRemove: Label[] = [];
-	for (const prLabel of labels) {
-		if (Object.values(Labels).toString().includes(prLabel.name)) {
-			if (prLabel.name !== labelToAdd) {
-				labelsToRemove.push(prLabel);
-			}
+	const labelToAdd: CustomLabel[] =
+		correctSizeLabel && !existingPRLabels.some((existingLabel) => existingLabel.name === correctSizeLabel.name)
+			? [correctSizeLabel]
+			: [];
+
+	const labelsToRemove: GitHubLabel[] = [];
+	for (const label of existingPRLabels) {
+		const isNotCorrectSizeLabel = !(correctSizeLabel && label.name === correctSizeLabel.name);
+		const isCustomLabel = sortedSizeLabels.some((sizeLabel) => sizeLabel.name === label.name);
+		if (isCustomLabel && isNotCorrectSizeLabel) {
+			labelsToRemove.push(label);
 		}
 	}
-	info(`labelToAd-size: ${labelToAdd} labelsToRemove-size: ${JSON.stringify(labelsToRemove, null, 2)}`);
-	return { sizeLabelToAdd: [labelToAdd], sizeLabelsToRemove: labelsToRemove };
+	debug(`labelToAd-size: ${labelToAdd} labelsToRemove-size: ${JSON.stringify(labelsToRemove, null, 2)}`);
+	return { labelToAdd, labelsToRemove };
 };
 
-const getServerOnlyLabel = (files: File[], labels: Label[]) => {
+const getServerOnlyLabel = (files: File[], existingPRLabels: GitHubLabel[]): LabelChanges => {
 	const serverOnlyPattern = '**/src/server/**';
+	const serverOnlyLabel = customLabels.find((label) => label.type === 'server-only');
+	if (!serverOnlyLabel) {
+		return { labelToAdd: [], labelsToRemove: [] };
+	}
 	for (const file of files) {
-		info(`file: ${file.filename}`);
+		debug(`file: ${file.filename}`);
 	}
 	const serverOnly = !files.some((file) => !minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
@@ -153,12 +174,12 @@ const getServerOnlyLabel = (files: File[], labels: Label[]) => {
 	} else {
 		info('This PR is not server only');
 	}
-	const existingLabel = labels.find((label) => label.name === Labels.SERVERONLY);
-	info(`existingLabel: ${JSON.stringify(existingLabel, null, 2)}`);
-	const labelToAdd: string[] = serverOnly && !existingLabel ? [Labels.SERVERONLY] : [];
-	const labelsToRemove: Label[] = !serverOnly && existingLabel ? [existingLabel] : [];
-	info(`labelToAd: ${labelToAdd} labelsToRemove: ${JSON.stringify(labelsToRemove, null, 2)}`);
-	return { serverOnlyLabelToAdd: labelToAdd, serverOnlyLabelToRemove: labelsToRemove };
+	debug(`existingLabels: ${JSON.stringify(existingPRLabels, null, 2)}`);
+	const existingServerOnlyLabel = existingPRLabels.find((existingLabel) => existingLabel.name === serverOnlyLabel.name);
+	const labelToAdd: CustomLabel[] = serverOnly && !existingServerOnlyLabel ? [serverOnlyLabel] : [];
+	const labelsToRemove: GitHubLabel[] = !serverOnly && existingServerOnlyLabel ? [existingServerOnlyLabel] : [];
+	debug(`labelToAd: ${labelToAdd} labelsToRemove: ${JSON.stringify(labelsToRemove, null, 2)}`);
+	return { labelToAdd, labelsToRemove };
 };
 
 const handlePullRequest = async () => {
@@ -169,14 +190,18 @@ const handlePullRequest = async () => {
 
 	const { data: prFiles } = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
 
-	const { sizeLabelToAdd, sizeLabelsToRemove } = await getSizeBasedLabels(additions + deletions, prFiles, prLabels);
-	const { serverOnlyLabelToAdd, serverOnlyLabelToRemove } = getServerOnlyLabel(prFiles, prLabels);
+	const { labelToAdd: sizeLabelToAdd, labelsToRemove: sizeLabelsToRemove } = await getSizeBasedLabels(
+		additions + deletions,
+		prFiles,
+		prLabels
+	);
+	const { labelToAdd: serverOnlyLabelToAdd, labelsToRemove: serverOnlyLabelToRemove } = getServerOnlyLabel(prFiles, prLabels);
 
-	const labelsToAdd: string[] = ([] as string[]).concat(sizeLabelToAdd, serverOnlyLabelToAdd);
-	const labelsToRemove: Label[] = ([] as Label[]).concat(sizeLabelsToRemove, serverOnlyLabelToRemove);
+	const labelsToAdd: CustomLabel[] = sizeLabelToAdd.concat(serverOnlyLabelToAdd);
+	const labelsToRemove: GitHubLabel[] = sizeLabelsToRemove.concat(serverOnlyLabelToRemove);
 
-	info(`labels to add: ${JSON.stringify(labelsToAdd, null, 2)}`);
-	info(`labels to remove: ${JSON.stringify(labelsToRemove, null, 2)}`);
+	debug(`labels to add: ${JSON.stringify(labelsToAdd, null, 2)}`);
+	debug(`labels to remove: ${JSON.stringify(labelsToRemove, null, 2)}`);
 
 	for (const label of labelsToRemove) {
 		info(`Removing label ${label.name}`);
@@ -187,11 +212,11 @@ const handlePullRequest = async () => {
 		});
 	}
 
-	info(`Adding label: ${labelsToAdd}`);
+	info(`Adding labels: ${labelsToAdd.map((label) => label.name)}`);
 	for (const label of labelsToAdd) {
-		await ensureLabelExists(label, Colors[label]);
+		await ensureLabelExists(label);
 	}
-	return await client.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: labelsToAdd });
+	return await client.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: labelsToAdd.map((label) => label.name) });
 };
 
 const run = async () => {
