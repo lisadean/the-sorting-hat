@@ -4,7 +4,7 @@ import * as minimatch from 'minimatch';
 import { Context } from '@actions/github/lib/context';
 import { PullRequestEvent, Label as GitHubLabel } from '@octokit/webhooks-types';
 
-const DEBUG = false; // set this to true for extra logging
+const DEBUG = true; // set this to true for extra logging
 
 type File = {
 	sha: string;
