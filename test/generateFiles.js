@@ -1,6 +1,3 @@
-// import { writeFile, writeFileSync } from 'fs';
-// import { join } from 'path';
-// import { exec } from 'child_process';
 const { writeFile, writeFileSync } = require('fs');
 const { join } = require('path');
 const { exec } = require('child_process');
