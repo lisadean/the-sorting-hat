@@ -4,7 +4,7 @@ import * as minimatch from 'minimatch';
 import { Context } from '@actions/github/lib/context';
 import { PullRequestEvent, Label as GitHubLabel } from '@octokit/webhooks-types';
 
-const DEBUG = false; // set this to true for extra logging
+const DEBUG = true; // set this to true for extra logging
 
 type File = {
 	sha: string;
@@ -231,6 +231,13 @@ const handlePullRequest = async () => {
 	} else {
 		info('No labels to add');
 	}
+
+	const { data: currentLabels } = await client.rest.issues.listLabelsOnIssue({
+		...context.repo,
+		issue_number: number
+	});
+	debug(`currentLabels: ${JSON.stringify(currentLabels, null, 2)}`);
+	core.setOutput('labels', getLabelNames(currentLabels).toString());
 };
 
 const run = async () => {

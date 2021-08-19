@@ -8,6 +8,9 @@ inputs:
   token:
     description: 'The GITHUB_TOKEN secret'
     required: true
+outputs:
+  labels:
+    description: 'New list of PR labels after action run'
 runs:
     using: 'node12'
     main: 'dist/index.js'
