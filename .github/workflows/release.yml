@@ -14,13 +14,17 @@ jobs:
               with:
                   node-version: 16
                   cache: npm
+            - name: Install node modules
+              run: |
+                npm ci
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Bump version & tag
               run: npx semantic-release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Build
               run: |
-                npm ci
                 npm run build
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
