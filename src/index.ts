@@ -95,7 +95,7 @@ const getSizeLabel = (lineCount: number): CustomLabel | undefined => {
 			return label;
 		}
 	}
-	return;
+	return undefined;
 };
 
 const getExcludedGlobs = async () => {
