@@ -236,8 +236,9 @@ const handlePullRequest = async () => {
 		...context.repo,
 		issue_number: number
 	});
-	debug(`currentLabels: ${JSON.stringify(currentLabels, null, 2)}`);
-	core.setOutput('labels', getLabelNames(currentLabels).toString());
+	const actionOutputLabels = getLabelNames(currentLabels).toString();
+	info(`Action output -- labels: ${actionOutputLabels}`);
+	core.setOutput('labels', actionOutputLabels);
 };
 
 const run = async () => {
