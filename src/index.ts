@@ -223,11 +223,12 @@ const handlePullRequest = async () => {
 		for (const label of labelsToAdd) {
 			await ensureLabelExists(label);
 		}
-		await client.rest.issues.addLabels({
+		const currentLabels = await client.rest.issues.addLabels({
 			...context.repo,
 			issue_number: number,
 			labels: getLabelNames(labelsToAdd)
 		});
+		debug(`currentLabels: ${JSON.stringify(currentLabels, null, 2)}`);
 	} else {
 		info('No labels to add');
 	}
@@ -241,11 +242,16 @@ const handlePullRequest = async () => {
 	core.setOutput('labels', actionOutputLabels);
 };
 
+const handleGetCurrentPRLabels = async () => {
+	core.setOutput('labels', 'this is the output');
+};
+
 const run = async () => {
 	try {
 		context = github.context;
 		if (context.eventName === 'pull_request') {
 			await handlePullRequest();
+			await handleGetCurrentPRLabels();
 		} else {
 			return core.warning('No relevant event found');
 		}
