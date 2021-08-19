@@ -89,6 +89,7 @@ const sortedSizeLabels = customLabels
 	.filter((label) => label.type === 'size')
 	.sort((a, b) => (!a.maxLines ? 1 : !b.maxLines ? -1 : a.maxLines - b.maxLines));
 
+const getLabelNames = (labels: CustomLabel[] | GitHubLabel[]): string[] => labels.map((label: CustomLabel | GitHubLabel) => label.name);
 const getSizeLabel = (lineCount: number): CustomLabel | undefined => {
 	for (const label of sortedSizeLabels) {
 		if (!label.maxLines || lineCount <= label.maxLines) {
@@ -174,11 +175,11 @@ const getServerOnlyLabel = (files: File[], existingPRLabels: GitHubLabel[]): Lab
 	} else {
 		info('This PR is not server only');
 	}
-	debug(`existingLabels: ${JSON.stringify(existingPRLabels, null, 2)}`);
+
 	const existingServerOnlyLabel = existingPRLabels.find((existingLabel) => existingLabel.name === serverOnlyLabel.name);
 	const labelToAdd: CustomLabel[] = serverOnly && !existingServerOnlyLabel ? [serverOnlyLabel] : [];
 	const labelsToRemove: GitHubLabel[] = !serverOnly && existingServerOnlyLabel ? [existingServerOnlyLabel] : [];
-	debug(`labelToAd: ${labelToAdd} labelsToRemove: ${JSON.stringify(labelsToRemove, null, 2)}`);
+	debug(`labelToAdd-server: ${getLabelNames(labelToAdd)} labelsToRemove-server: ${getLabelNames(labelsToRemove)}`);
 	return { labelToAdd, labelsToRemove };
 };
 
@@ -187,6 +188,7 @@ const handlePullRequest = async () => {
 		pull_request: { number, title, labels: prLabels, additions, deletions }
 	}: PullRequestEvent = context.payload as PullRequestEvent;
 	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
+	debug(`existingLabels: ${getLabelNames(prLabels)}`);
 
 	const { data: prFiles } = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
 
@@ -217,14 +219,14 @@ const handlePullRequest = async () => {
 	}
 
 	if (labelsToAdd.length > 0) {
-		info(`Adding labels: ${labelsToAdd.map((label) => label.name)}`);
+		info(`Adding labels: ${getLabelNames(labelsToAdd)}`);
 		for (const label of labelsToAdd) {
 			await ensureLabelExists(label);
 		}
 		await client.rest.issues.addLabels({
 			...context.repo,
 			issue_number: number,
-			labels: labelsToAdd.map((label) => label.name)
+			labels: getLabelNames(labelsToAdd)
 		});
 	} else {
 		info('No labels to add');
