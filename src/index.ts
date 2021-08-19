@@ -138,8 +138,8 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], existingP
 		}
 	}
 
-	info(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
 	info(`Total number of additions and deletions in excluded files: ${totalChangedLinesInExcludedFiles}`);
+	info(`Total number of additions and deletions that will count towards PR size: ${totalChangedLines}`);
 	const correctSizeLabel: CustomLabel | undefined = getSizeLabel(totalChangedLines);
 
 	const labelToAdd: CustomLabel[] =
@@ -155,7 +155,7 @@ const getSizeBasedLabels = async (changedLines: number, files: File[], existingP
 			labelsToRemove.push(label);
 		}
 	}
-	debug(`labelToAd-size: ${labelToAdd} labelsToRemove-size: ${JSON.stringify(labelsToRemove, null, 2)}`);
+	debug(`labelToAdd-size: ${labelToAdd} labelsToRemove-size: ${JSON.stringify(labelsToRemove, null, 2)}`);
 	return { labelToAdd, labelsToRemove };
 };
 
@@ -166,7 +166,7 @@ const getServerOnlyLabel = (files: File[], existingPRLabels: GitHubLabel[]): Lab
 		return { labelToAdd: [], labelsToRemove: [] };
 	}
 	for (const file of files) {
-		debug(`file: ${file.filename}`);
+		debug(`processing file for server-only: ${file.filename}`);
 	}
 	const serverOnly = !files.some((file) => !minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
@@ -203,20 +203,32 @@ const handlePullRequest = async () => {
 	debug(`labels to add: ${JSON.stringify(labelsToAdd, null, 2)}`);
 	debug(`labels to remove: ${JSON.stringify(labelsToRemove, null, 2)}`);
 
-	for (const label of labelsToRemove) {
-		info(`Removing label ${label.name}`);
-		await client.rest.issues.removeLabel({
-			...context.repo,
-			issue_number: number,
-			name: label.name
-		});
+	if (labelsToRemove.length > 0) {
+		for (const label of labelsToRemove) {
+			info(`Removing label ${label.name}`);
+			await client.rest.issues.removeLabel({
+				...context.repo,
+				issue_number: number,
+				name: label.name
+			});
+		}
+	} else {
+		info('No labels to remove');
 	}
 
-	info(`Adding labels: ${labelsToAdd.map((label) => label.name)}`);
-	for (const label of labelsToAdd) {
-		await ensureLabelExists(label);
+	if (labelsToAdd.length > 0) {
+		info(`Adding labels: ${labelsToAdd.map((label) => label.name)}`);
+		for (const label of labelsToAdd) {
+			await ensureLabelExists(label);
+		}
+		await client.rest.issues.addLabels({
+			...context.repo,
+			issue_number: number,
+			labels: labelsToAdd.map((label) => label.name)
+		});
+	} else {
+		info('No labels to add');
 	}
-	return await client.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: labelsToAdd.map((label) => label.name) });
 };
 
 const run = async () => {
