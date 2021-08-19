@@ -1,81 +1,108 @@
-import core from '@actions/core';
-import github from '@actions/github';
-import Generated from '@noqcks/generated';
-import { minimatch } from 'minimatch';
-import { PullRequestEvent } from '@octokit/webhooks-types';
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+import * as minimatch from 'minimatch';
 import { Context } from '@actions/github/lib/context';
+import { PullRequestEvent, Label as GitHubLabel } from '@octokit/webhooks-types';
 
-type ClientType = ReturnType<typeof github.getOctokit>;
+const DEBUG = false; // set this to true for extra logging
 
-enum Labels {
-	XS = 'size/XS',
-	S = 'size/S',
-	M = 'size/M',
-	L = 'size/L',
-	XL = 'size/XL',
-	XXL = 'size/XXL'
-}
-
-enum Colors {
-	'size/XS' = '3CBF00',
-	'size/S' = '5D9801',
-	'size/M' = '7F7203',
-	'size/L' = 'A14C05',
-	'size/XL' = 'C32607',
-	'size/XXL' = 'E50009'
-}
-
-enum Sizes {
-	S = 10,
-	M = 30,
-	L = 100,
-	Xl = 500,
-	Xxl = 1000
-}
-
-const info = (stuff: string) => {
-	// eslint-disable-next-line no-console
-	console.info(stuff);
-	core.info(stuff);
+type File = {
+	sha: string;
+	filename: string;
+	status: string;
+	additions: number;
+	deletions: number;
+	changes: number;
+	blob_url: string;
+	raw_url: string;
+	contents_url: string;
+	patch?: string;
+	previous_filename?: string;
 };
-const error = (stuff: string | Error) => {
-	// eslint-disable-next-line no-console
-	console.error(stuff);
-	core.error(stuff);
-};
-const debug = (stuff: string) => {
-	// eslint-disable-next-line no-console
-	process.env.NODE_ENV === 'development' && console.debug(stuff);
-	core.debug(stuff);
-};
-const globMatch = (file: string, globs: string[]) => globs.some((glob) => minimatch(file, glob));
 
-/**
- * sizeLabel will return a string label that can be assigned to a
- * GitHub Pull Request. The label is determined by the lines of code
- * in the Pull Request.
- * @param lineCount The number of lines in the Pull Request.
- */
-const sizeLabel = (lineCount: number): Labels => {
-	if (lineCount < Sizes.S) {
-		return Labels.XS;
-	} else if (lineCount < Sizes.M) {
-		return Labels.S;
-	} else if (lineCount < Sizes.L) {
-		return Labels.M;
-	} else if (lineCount < Sizes.Xl) {
-		return Labels.L;
-	} else if (lineCount < Sizes.Xxl) {
-		return Labels.XL;
+type CustomLabel = {
+	name: string;
+	color: string;
+	type?: string;
+	maxLines?: number;
+};
+
+type LabelChanges = { labelToAdd: CustomLabel[]; labelsToRemove: GitHubLabel[] };
+
+let context: Context;
+const client = github.getOctokit(core.getInput('token'));
+
+const customLabels: CustomLabel[] = [
+	{
+		name: 'size/XS',
+		type: 'size',
+		maxLines: 10,
+		color: '3CBF00'
+	},
+	{
+		name: 'size/S',
+		type: 'size',
+		maxLines: 30,
+		color: '5D9801'
+	},
+	{
+		name: 'size/M',
+		type: 'size',
+		maxLines: 100,
+		color: '7F7203'
+	},
+	{
+		name: 'size/L',
+		type: 'size',
+		maxLines: 500,
+		color: 'A14C05'
+	},
+	{
+		name: 'size/XL',
+		type: 'size',
+		maxLines: 1000,
+		color: 'C32607'
+	},
+	{
+		name: 'size/XXL',
+		type: 'size',
+		color: 'E50009'
+	},
+	{
+		name: 'server-only',
+		type: 'server-only',
+		color: '66E5A2'
 	}
-	return Labels.XXL;
+];
+
+const info = (stuff: string) => core.info(stuff);
+const error = (stuff: string | Error) => {
+	if (typeof stuff !== 'string' && stuff.stack) {
+		core.error(stuff.stack);
+	} else {
+		core.error(stuff);
+	}
+};
+const debug = (stuff: string) => DEBUG && core.info(`DEBUG: ${stuff}`);
+
+const sortedSizeLabels = customLabels
+	.filter((label) => label.type === 'size')
+	.sort((a, b) => (!a.maxLines ? 1 : !b.maxLines ? -1 : a.maxLines - b.maxLines));
+
+const getLabelNames = (labels: CustomLabel[] | GitHubLabel[]): string[] => labels.map((label: CustomLabel | GitHubLabel) => label.name);
+const getSizeLabel = (lineCount: number): CustomLabel | undefined => {
+	for (const label of sortedSizeLabels) {
+		if (!label.maxLines || lineCount <= label.maxLines) {
+			return label;
+		}
+	}
+	return undefined;
 };
 
-const getExcludedFiles = async (client: ClientType) => {
+const getExcludedGlobs = async () => {
 	const path = '.gitattributes';
 	const exclusions = ['linguist-generated=true', 'pr-size-ignore=true'];
 	try {
-		// There might be a type for this somewhere
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const { data }: any = await client.rest.repos.getContent({ ...github.context.repo, path });
 		const excludedFiles = data.content
@@ -92,7 +119,7 @@ const getExcludedFiles = async (client: ClientType) => {
 	}
 };
 
-const ensureLabelExists = async (client: ClientType, name: Labels, color: Colors) => {
+const ensureLabelExists = async ({ name, color }: CustomLabel) => {
 	try {
 		return await client.rest.issues.getLabel({ ...github.context.repo, name });
 	} catch (e) {
@@ -100,66 +127,123 @@ const ensureLabelExists = async (client: ClientType, name: Labels, color: Colors
 	}
 };
 
-const handlePullRequest = async (context: Context) => {
-	const client: ClientType = github.getOctokit(core.getInput('token'));
-
-	const {
-		pull_request: { number },
-		pull_request: pullRequest
-	}: PullRequestEvent = context.payload as PullRequestEvent;
-
-	let { additions, deletions } = pullRequest;
-	info(`Processing pull request ${number} in ${context.repo.repo}`);
-
-	const fileData = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
-	const excludedFiles = await getExcludedFiles(client);
-
-	// if files are excluded, remove them from the additions/deletions total
-	for (const file of fileData.data) {
-		const g = new Generated(file.filename, file.patch);
-		if (globMatch(file.filename, excludedFiles) || g.isGenerated()) {
+const getSizeBasedLabels = async (changedLines: number, files: File[], existingPRLabels: GitHubLabel[]): Promise<LabelChanges> => {
+	let totalChangedLines = changedLines;
+	let totalChangedLinesInExcludedFiles = 0;
+	const excludedGlobs = await getExcludedGlobs();
+	for (const file of files) {
+		if (excludedGlobs.some((glob) => minimatch(file.filename, glob))) {
 			info(`Excluding file: ${file.filename}`);
-			additions -= file.additions;
-			deletions -= file.deletions;
-		}
-	}
-	const totalChangedLines = additions + deletions;
-	const labelToAdd: Labels = sizeLabel(totalChangedLines);
-	info(`Total number of additions and deletions in non-excluded files: ${totalChangedLines}`);
-
-	// remove old size/<size> label if it no longer applies
-	for (const prLabel of pullRequest.labels) {
-		debug(`PR label: ${prLabel.name}`);
-		debug(`Labels: ${Object.values(Labels)}`);
-		if (Object.values(Labels).toString().includes(prLabel.name)) {
-			if (prLabel.name !== labelToAdd) {
-				info(`Removing label ${prLabel.name}`);
-				await client.rest.issues.removeLabel({
-					...context.repo,
-					issue_number: number,
-					name: prLabel.name
-				});
-			}
+			totalChangedLines -= file.additions + file.deletions;
+			totalChangedLinesInExcludedFiles += file.additions + file.deletions;
 		}
 	}
 
-	// Add label
-	await ensureLabelExists(client, labelToAdd, Colors[labelToAdd]);
-	info(`Adding label: ${labelToAdd}`);
-	return await client.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [labelToAdd] });
+	info(`Total number of additions and deletions in excluded files: ${totalChangedLinesInExcludedFiles}`);
+	info(`Total number of additions and deletions that will count towards PR size: ${totalChangedLines}`);
+	const correctSizeLabel: CustomLabel | undefined = getSizeLabel(totalChangedLines);
+
+	const labelToAdd: CustomLabel[] =
+		correctSizeLabel && !existingPRLabels.some((existingLabel) => existingLabel.name === correctSizeLabel.name)
+			? [correctSizeLabel]
+			: [];
+
+	const labelsToRemove: GitHubLabel[] = [];
+	for (const label of existingPRLabels) {
+		const isNotCorrectSizeLabel = !(correctSizeLabel && label.name === correctSizeLabel.name);
+		const isCustomLabel = sortedSizeLabels.some((sizeLabel) => sizeLabel.name === label.name);
+		if (isCustomLabel && isNotCorrectSizeLabel) {
+			labelsToRemove.push(label);
+		}
+	}
+	debug(`labelToAdd-size: ${getLabelNames(labelToAdd)} labelsToRemove-size: ${getLabelNames(labelsToRemove)}`);
+	return { labelToAdd, labelsToRemove };
+};
+
+const getServerOnlyLabel = (files: File[], existingPRLabels: GitHubLabel[]): LabelChanges => {
+	const serverOnlyPattern = '**/src/server/**';
+	const serverOnlyLabel = customLabels.find((label) => label.type === 'server-only');
+	if (!serverOnlyLabel) {
+		return { labelToAdd: [], labelsToRemove: [] };
+	}
+	for (const file of files) {
+		debug(`processing file for server-only: ${file.filename}`);
+	}
+	const serverOnly = files.length > 0 && !files.some((file) => !minimatch(file.filename, serverOnlyPattern));
+	if (serverOnly) {
+		info('This PR is server only and has no UI changes');
+	} else {
+		info('This PR is not server only');
+	}
+
+	const existingServerOnlyLabel = existingPRLabels.find((existingLabel) => existingLabel.name === serverOnlyLabel.name);
+	const labelToAdd: CustomLabel[] = serverOnly && !existingServerOnlyLabel ? [serverOnlyLabel] : [];
+	const labelsToRemove: GitHubLabel[] = !serverOnly && existingServerOnlyLabel ? [existingServerOnlyLabel] : [];
+	debug(`labelToAdd-server: ${getLabelNames(labelToAdd)} labelsToRemove-server: ${getLabelNames(labelsToRemove)}`);
+	return { labelToAdd, labelsToRemove };
+};
+
+const handlePullRequest = async () => {
+	const {
+		pull_request: { number, title, labels: prLabels, additions, deletions }
+	}: PullRequestEvent = context.payload as PullRequestEvent;
+	info(`Processing pull request #${number}: ${title} in ${context.repo.repo}`);
+	debug(`existingLabels: ${getLabelNames(prLabels)}`);
+
+	const { data: prFiles } = await client.rest.pulls.listFiles({ ...context.repo, pull_number: number });
+
+	const { labelToAdd: sizeLabelToAdd, labelsToRemove: sizeLabelsToRemove } = await getSizeBasedLabels(
+		additions + deletions,
+		prFiles,
+		prLabels
+	);
+	const { labelToAdd: serverOnlyLabelToAdd, labelsToRemove: serverOnlyLabelToRemove } = getServerOnlyLabel(prFiles, prLabels);
+
+	const labelsToAdd: CustomLabel[] = sizeLabelToAdd.concat(serverOnlyLabelToAdd);
+	const labelsToRemove: GitHubLabel[] = sizeLabelsToRemove.concat(serverOnlyLabelToRemove);
+
+	debug(`labels to add: ${getLabelNames(labelsToAdd)}`);
+	debug(`labels to remove: ${getLabelNames(labelsToRemove)}`);
+
+	if (labelsToRemove.length > 0) {
+		for (const label of labelsToRemove) {
+			info(`Removing label ${label.name}`);
+			await client.rest.issues.removeLabel({
+				...context.repo,
+				issue_number: number,
+				name: label.name
+			});
+		}
+	} else {
+		info('No labels to remove');
+	}
+
+	if (labelsToAdd.length > 0) {
+		info(`Adding labels: ${getLabelNames(labelsToAdd)}`);
+		for (const label of labelsToAdd) {
+			await ensureLabelExists(label);
+		}
+		await client.rest.issues.addLabels({
+			...context.repo,
+			issue_number: number,
+			labels: getLabelNames(labelsToAdd)
+		});
+	} else {
+		info('No labels to add');
+	}
 };
 
 const run = async () => {
 	try {
-		const context = github.context;
+		context = github.context;
 		if (context.eventName === 'pull_request') {
-			handlePullRequest(context);
+			await handlePullRequest();
 		} else {
 			return core.warning('No relevant event found');
 		}
 	} catch (e) {
-		error(e.message);
-		return core.setFailed(e.message);
+		error(e);
+		return core.setFailed('Something went wrong');
 	}
 };
 
