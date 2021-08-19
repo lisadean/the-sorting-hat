@@ -168,7 +168,7 @@ const getServerOnlyLabel = (files: File[], existingPRLabels: GitHubLabel[]): Lab
 	for (const file of files) {
 		debug(`processing file for server-only: ${file.filename}`);
 	}
-	const serverOnly = !files.some((file) => !minimatch(file.filename, serverOnlyPattern));
+	const serverOnly = files.length > 0 && !files.some((file) => !minimatch(file.filename, serverOnlyPattern));
 	if (serverOnly) {
 		info('This PR is server only and has no UI changes');
 	} else {
