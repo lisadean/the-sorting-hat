@@ -9,7 +9,16 @@ jobs:
       - uses: styfle/cancel-workflow-action@0.8.0
         with:
           access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Dump github context
+        env:
+            GITHUB_CONTEXT: ${{ toJSON(github) }}
+        run: echo "$GITHUB_CONTEXT"
       - name: Run GH action from dev branch
+        id: sorting-hat
         uses: lisadean/the-sorting-hat@vdev
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get output
+        env:
+            CURRENT_LABELS: ${{ steps.sorting-hat.outputs.labels }}
+        run: echo "$CURRENT_LABELS"
