@@ -60,7 +60,7 @@ const customLabels: CustomLabel[] = [
 	{
 		name: 'size/XL',
 		type: 'size',
-		maxLines: 1000,
+		maxLines: 800,
 		color: 'C32607'
 	},
 	{
