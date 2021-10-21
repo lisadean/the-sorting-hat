@@ -1,20 +1,26 @@
-name: Release to v1
+name: Main - Release to v1
 
-on: workflow_dispatch
-
+on:
+    push:
+        branches:
+            - main
 jobs:
     release:
-        name: release
+        name: Release to v1 branch
         runs-on: ubuntu-latest
         steps:
+            - name: Cancel all other runs of this workflow
+              uses: styfle/cancel-workflow-action@0.9.1
+              with:
+                  access_token: ${{ secrets.GITHUB_TOKEN }}
+                  all_but_latest: true
             - uses: actions/checkout@v2
             - uses: actions/setup-node@v2
               with:
                   node-version: 16
                   cache: npm
             - name: Install node modules
-              run: |
-                npm ci
+              run: npm ci
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Bump version & tag
@@ -22,8 +28,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Build
-              run: |
-                npm run build
+              run: npm run build
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Commit dist folder and push to v1 branch
