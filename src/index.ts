@@ -76,6 +76,7 @@ const customLabels: CustomLabel[] = [
 ];
 
 const info = (stuff: string) => core.info(stuff);
+const warning = (stuff: string) => core.warning(stuff);
 const error = (stuff: string | Error) => {
 	if (typeof stuff !== 'string' && stuff.stack) {
 		core.error(stuff.stack);
@@ -208,11 +209,15 @@ const handlePullRequest = async () => {
 	if (labelsToRemove.length > 0) {
 		for (const label of labelsToRemove) {
 			info(`Removing label ${label.name}`);
-			await client.rest.issues.removeLabel({
-				...context.repo,
-				issue_number: number,
-				name: label.name
-			});
+			try {
+				await client.rest.issues.removeLabel({
+					...context.repo,
+					issue_number: number,
+					name: label.name
+				});
+			} catch (e) {
+				warning(e)
+			}
 		}
 	} else {
 		info('No labels to remove');
@@ -247,7 +252,7 @@ const run = async () => {
 		if (context.eventName === 'pull_request') {
 			await handlePullRequest();
 		} else {
-			return core.warning('No relevant event found');
+			return warning('No relevant event found');
 		}
 	} catch (e) {
 		error(e);
