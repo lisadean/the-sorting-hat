@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import * as minimatch from 'minimatch';
 import { Context } from '@actions/github/lib/context';
-import { PullRequestEvent, Label as GitHubLabel } from '@octokit/webhooks-types';
+import { Label as GitHubLabel, PullRequestEvent } from '@octokit/webhooks-types';
+import * as minimatch from 'minimatch';
 
 const DEBUG = false; // set this to true for extra logging
 
@@ -72,6 +72,11 @@ const customLabels: CustomLabel[] = [
 		name: 'server-only',
 		type: 'server-only',
 		color: '66E5A2'
+	},
+	{
+		name: 'docs-only',
+		type: 'docs-only',
+		color: '63416'
 	}
 ];
 
@@ -184,6 +189,77 @@ const getServerOnlyLabel = (files: File[], existingPRLabels: GitHubLabel[]): Lab
 	return { labelToAdd, labelsToRemove };
 };
 
+const getDocsOnlyLabel = (files: File[], existingPRLabels: GitHubLabel[]): LabelChanges => {
+	// const mockFilePatternRegex = /(mock-data|mocks)\.ts$/;
+	// const storyFilePatternRegex = /\.story.ts(x?)$/;
+	// const githubFilePatternRegex = /^\.github\//;
+	// const huskyFilePatternRegex = /^\.husky\//;
+	// const outFilePatternRegex = /^\.out\//;
+	// const storybookFilePatternRegex = /^\.storybook\//;
+	// const vscodeFilePatternRegex = /^\.vscode\//;
+	// const fergyTemplatesFilePatternRegex = /^(fergy-templates)\//;
+
+	const mockFilePatternGlob = '**/*.+(mocks|mock-data).ts';
+	const storyFilePatternGlob = '**/*.story.ts?(x)';
+	const githubFilePatternGlob = '.github/**';
+	const huskyFilePatternGlob = '.husky/**';
+	const outFilePatternGlob = '.out/**';
+	const storybookFilePatternGlob = '.storybook/**';
+	const vscodeFilePatternGlob = '.vscode/**';
+	const fergyTemplatesFilePatternGlob = 'fergy-templates/**';
+
+	const docsOnlyLabel = customLabels.find((label) => label.type === 'docs-only');
+	if (!docsOnlyLabel) {
+		return { labelToAdd: [], labelsToRemove: [] };
+	}
+
+	// let docsOnly = true;
+
+	// for (const file of files) {
+	// 	debug(`processing file for docs-only: ${file.filename}`);
+	// 	if (
+	// 		!minimatch(file.filename, mockFilePatternRegex) &&
+	// 		!minimatch(file.filename, storyFilePatternRegex) &&
+	// 		!minimatch(file.filename, githubFilePatternRegex) &&
+	// 		!minimatch(file.filename, huskyFilePatternRegex) &&
+	// 		!minimatch(file.filename, outFilePatternRegex) &&
+	// 		!minimatch(file.filename, storybookFilePatternRegex) &&
+	// 		!minimatch(file.filename, vscodeFilePatternRegex) &&
+	// 		!minimatch(file.filename, fergyTemplatesFilePatternRegex)
+	// 	) {
+	// 		docsOnly = false;
+	// 		break;
+	// 	}
+	// }
+
+	const docsOnly =
+		files.length > 0 &&
+		!files.some(
+			(file) =>
+				!minimatch(file.filename, mockFilePatternGlob) &&
+				!minimatch(file.filename, storyFilePatternGlob) &&
+				!minimatch(file.filename, githubFilePatternGlob) &&
+				!minimatch(file.filename, huskyFilePatternGlob) &&
+				!minimatch(file.filename, outFilePatternGlob) &&
+				!minimatch(file.filename, storybookFilePatternGlob) &&
+				!minimatch(file.filename, vscodeFilePatternGlob) &&
+				!minimatch(file.filename, fergyTemplatesFilePatternGlob)
+		);
+
+	if (docsOnly) {
+		info('This PR is Docs only and does not require a deploy');
+	} else {
+		info('This PR is not docs only');
+	}
+
+	const existingDocsOnlyLabel = existingPRLabels.find((existingLabel) => existingLabel.name === docsOnlyLabel.name);
+	const labelToAdd: CustomLabel[] = docsOnly && !existingDocsOnlyLabel ? [docsOnlyLabel] : [];
+	const labelsToRemove: GitHubLabel[] = !docsOnly && existingDocsOnlyLabel ? [existingDocsOnlyLabel] : [];
+	debug(`labelToAdd-docs: ${getLabelNames(labelToAdd)} labelsToRemove-docs: ${getLabelNames(labelsToRemove)}`);
+
+	return { labelToAdd, labelsToRemove };
+};
+
 const handlePullRequest = async () => {
 	const {
 		pull_request: { number, title, labels: prLabels, additions, deletions }
@@ -199,9 +275,10 @@ const handlePullRequest = async () => {
 		prLabels
 	);
 	const { labelToAdd: serverOnlyLabelToAdd, labelsToRemove: serverOnlyLabelToRemove } = getServerOnlyLabel(prFiles, prLabels);
+	const { labelToAdd: docsOnlyLabelToAdd, labelsToRemove: docsOnlyLabelsToRemove } = getDocsOnlyLabel(prFiles, prLabels);
 
-	const labelsToAdd: CustomLabel[] = sizeLabelToAdd.concat(serverOnlyLabelToAdd);
-	const labelsToRemove: GitHubLabel[] = sizeLabelsToRemove.concat(serverOnlyLabelToRemove);
+	const labelsToAdd: CustomLabel[] = sizeLabelToAdd.concat(serverOnlyLabelToAdd).concat(docsOnlyLabelToAdd);
+	const labelsToRemove: GitHubLabel[] = sizeLabelsToRemove.concat(serverOnlyLabelToRemove).concat(docsOnlyLabelsToRemove);
 
 	debug(`labels to add: ${getLabelNames(labelsToAdd)}`);
 	debug(`labels to remove: ${getLabelNames(labelsToRemove)}`);
@@ -216,7 +293,7 @@ const handlePullRequest = async () => {
 					name: label.name
 				});
 			} catch (e) {
-				warning(e)
+				warning(e);
 			}
 		}
 	} else {
